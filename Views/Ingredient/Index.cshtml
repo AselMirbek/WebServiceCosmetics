@@ -1,0 +1,68 @@
+﻿@model IEnumerable<WebServiceCosmetics.Models.IngredientModel>
+@using WebServiceCosmetics.Models;
+@inject WebServiceCosmetics.Data.ApplicationDbContext _context
+
+@{
+    ViewData["Title"] = "Ингредиенты";
+    var products = _context.Products.ToList();
+}
+
+<h2>Ингредиенты</h2>
+
+<div class="form-group">
+    <label for="productSelect">Выберите продукт:</label>
+    <select id="productSelect" class="form-control">
+        <option value="">-- Выберите продукт --</option>
+        @foreach (var product in products)
+        {
+            <option value="@product.Id">@product.Name</option>
+        }
+    </select>
+</div>
+
+<button id="addIngredient" class="btn btn-primary mt-2" style="display:none;">Добавить</button>
+
+<table class="table mt-3" id="ingredientTable" style="display:none;">
+    <thead>
+        <tr>
+            <th>Наименование сырья</th>
+            <th>Количество</th>
+            <th>Действия</th>
+        </tr>
+    </thead>
+    <tbody id="ingredientBody">
+        <!-- Данные заполняются через JavaScript -->
+    </tbody>
+</table>
+
+@section Scripts {
+    <script>
+        document.getElementById("productSelect").addEventListener("change", function() {
+            let productId = this.value;
+            if (productId) {
+                document.getElementById("addIngredient").style.display = "block";
+                fetch(`/Ingredient/GetByProduct?productId=${productId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        let tbody = document.getElementById("ingredientBody");
+                        tbody.innerHTML = "";
+                        data.forEach(ingredient => {
+                            let row = `<tr>
+                                <td>${ingredient.rawMaterialName}</td>
+                                <td>${ingredient.quantity}</td>
+                                <td>
+                                    <a href='/Ingredient/Edit/${ingredient.id}' class='btn btn-warning'>Редактировать</a>
+                                    <a href='/Ingredient/Delete/${ingredient.id}' class='btn btn-danger'>Удалить</a>
+                                </td>
+                            </tr>`;
+                            tbody.innerHTML += row;
+                        });
+                        document.getElementById("ingredientTable").style.display = "table";
+                    });
+            } else {
+                document.getElementById("addIngredient").style.display = "none";
+                document.getElementById("ingredientTable").style.display = "none";
+            }
+        });
+    </script>
+}

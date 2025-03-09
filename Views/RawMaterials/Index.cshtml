@@ -1,0 +1,44 @@
+﻿@model IEnumerable<WebServiceCosmetics.Models.RawMaterialModel>
+
+@{
+    ViewData["Title"] = "Список сырья";
+}
+
+<h2>Список сырья</h2>
+<a asp-action="Create" class="btn btn-primary">Добавить сырьё</a>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Название</th>
+            <th>Единица измерения</th>
+            <th>Количество</th>
+            <th>Цена</th>
+            <th>Действия</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model)
+        {
+            <tr>
+                <td>@item.Id</td>
+                <td>@item.Name</td>
+                <td>@item.Unit?.Name</td>
+                <td>@item.Quantity</td>
+                <td>@item.Price</td>
+                <td>
+                    <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-info">Редактировать</a>
+                    <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-warning">Обновить</a>
+
+                    <form asp-action="Delete" asp-route-id="@item.Id" method="post" style="display:inline-block;"
+                          onsubmit="return confirm('Вы уверены, что хотите удалить этот элемент?');">
+                        <button type="submit" class="btn btn-danger">Удалить</button>
+                    </form>
+                </td>
+            </tr>
+        }
+       
+
+    </tbody>
+</table>
