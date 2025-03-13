@@ -1,0 +1,12 @@
+﻿@model WebServiceCosmetics.Models.BudgetModel
+
+@{
+    ViewData["Title"] = "Бюджет";
+}
+
+<h2>Бюджет</h2>
+
+<p>Текущий бюджет: <strong>@Model.Amount.ToString("N2") Сом</strong></p>
+
+<a asp-action="Edit" class="btn btn-primary">Редактировать бюджет</a>
+

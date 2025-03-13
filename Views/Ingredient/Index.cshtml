@@ -4,7 +4,7 @@
 
 @{
     ViewData["Title"] = "Ингредиенты";
-    var products = _context.Products.ToList();
+    var products = _context.Product.ToList();
 }
 
 <h2>Ингредиенты</h2>
@@ -20,7 +20,7 @@
     </select>
 </div>
 
-<button id="addIngredient" class="btn btn-primary mt-2" style="display:none;">Добавить</button>
+<button id="Create" class="btn btn-primary mt-2" style="display:none;">Добавить ингредиент</button>
 
 <table class="table mt-3" id="ingredientTable" style="display:none;">
     <thead>
@@ -37,32 +37,83 @@
 
 @section Scripts {
     <script>
-        document.getElementById("productSelect").addEventListener("change", function() {
-            let productId = this.value;
+        // Проверяем, был ли выбран продукт ранее
+        document.addEventListener('DOMContentLoaded', function() {
+            const selectedProductId = localStorage.getItem("selectedProductId");
+
+            if (selectedProductId) {
+                document.getElementById("productSelect").value = selectedProductId;
+                loadIngredients(selectedProductId);
+                document.getElementById("Create").style.display = "block";
+            }
+        });
+
+        // Функция для загрузки ингредиентов для выбранного продукта
+        function loadIngredients(productId) {
             if (productId) {
-                document.getElementById("addIngredient").style.display = "block";
                 fetch(`/Ingredient/GetByProduct?productId=${productId}`)
                     .then(response => response.json())
                     .then(data => {
                         let tbody = document.getElementById("ingredientBody");
-                        tbody.innerHTML = "";
+                        tbody.innerHTML = ""; // Очищаем текущие данные в таблице
                         data.forEach(ingredient => {
                             let row = `<tr>
-                                <td>${ingredient.rawMaterialName}</td>
-                                <td>${ingredient.quantity}</td>
+                                <td>${ingredient.raw_Material_Name}</td>
+                                <td>${parseFloat(ingredient.quantity).toFixed(2)}</td>  <!-- Ensure decimal formatting -->
                                 <td>
                                     <a href='/Ingredient/Edit/${ingredient.id}' class='btn btn-warning'>Редактировать</a>
-                                    <a href='/Ingredient/Delete/${ingredient.id}' class='btn btn-danger'>Удалить</a>
+                                    <button class='btn btn-danger delete-btn' data-id='${ingredient.id}'>Удалить</button>
                                 </td>
                             </tr>`;
                             tbody.innerHTML += row;
                         });
-                        document.getElementById("ingredientTable").style.display = "table";
+
+                        document.getElementById("ingredientTable").style.display = "table"; // Показываем таблицу
+                    })
+                    .catch(error => {
+                        console.error("Ошибка при загрузке данных: ", error);
                     });
+            }
+        }
+            document.getElementById("Create").addEventListener("click", function() {
+                let productId = document.getElementById("productSelect").value; // Получаем ID продукта
+                if (productId) {
+                    window.location.href = `/Ingredient/Create?productId=${productId}`; // Переход на страницу создания
+                }
+            });
+
+             // Обработчик для выбора продукта
+        document.getElementById("productSelect").addEventListener("change", function() {
+            let productId = this.value; // Получаем ID продукта
+            if (productId) {
+                localStorage.setItem("selectedProductId", productId); // Сохраняем выбранный продукт в localStorage
+                document.getElementById("Create").style.display = "block"; // Показываем кнопку "Добавить"
+                loadIngredients(productId); // Загружаем ингредиенты для выбранного продукта
             } else {
-                document.getElementById("addIngredient").style.display = "none";
+                document.getElementById("Create").style.display = "none";
                 document.getElementById("ingredientTable").style.display = "none";
             }
         });
+
+                    document.getElementById("ingredientBody").addEventListener("click", function(event) {
+            if (event.target && event.target.classList.contains("delete-btn")) {
+                let Id = event.target.getAttribute("data-id"); // Получаем ID ингредиента
+                if (confirm('Вы уверены, что хотите удалить этот элемент?')) {
+                    fetch(`/Ingredient/Delete/${Id}`, { method: 'POST' })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                alert('Элемент удален');
+                                // Обновляем таблицу для выбранного продукта
+                                let productSelect = document.getElementById("productSelect");
+                                productSelect.value = data.productId;
+                                productSelect.dispatchEvent(new Event('change')); // Вызываем событие изменения для обновления данных
+                            }
+                        })
+                        .catch(error => console.error("Ошибка при удалении: ", error));
+                }
+            }
+        });
+
     </script>
 }

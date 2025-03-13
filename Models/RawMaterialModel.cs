@@ -4,6 +4,7 @@ using PdfSharpCore.Drawing;
 using WebServiceCosmetics.Models;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
 
 namespace WebServiceCosmetics.Models
 {
@@ -20,10 +21,18 @@ namespace WebServiceCosmetics.Models
 
         // Навигационное свойство для связи с единицей измерения
         [ForeignKey("Unit_id")]
+        [ValidateNever]
+
         public Unit Unit { get; set; }
 
         public decimal Quantity { get; set; }
         public decimal Price { get; set; }
+        [Required(ErrorMessage = "Необходимо добавить хотя бы один ингредиент.")]
+
+        public ICollection<IngredientModel> ingredient { get; set; } = new List<IngredientModel>();
+
+        public ICollection<RawMaterialPurchaseModel> Raw_Materials_Purchase { get; set; } = new List<RawMaterialPurchaseModel>();
+
     }
 }
 
@@ -36,4 +45,6 @@ public class Unit
 
     public string Name { get; set; }
     public ICollection<RawMaterialModel> RawMaterials { get; set; }
+    public ICollection<ProductModel> Product { get; set; }
+
 }

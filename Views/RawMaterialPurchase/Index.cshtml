@@ -1,20 +1,16 @@
-﻿@model IEnumerable<WebServiceCosmetics.Models.RawMaterialModel>
-
+﻿@model IEnumerable<WebServiceCosmetics.Models.RawMaterialPurchaseModel>
 @{
     ViewData["Title"] = "Список сырья";
 }
-
-<h2>Список сырья</h2>
-<a asp-action="Create" class="btn btn-primary">Добавить сырьё</a>
-
-<table class="table table-striped">
+<h2>Закупки сырья</h2>
+<a asp-action="Create" class="btn btn-primary">Добавить</a>
+<table class="table">
     <thead>
         <tr>
-            <th>ID</th>
-            <th>Название</th>
-            <th>Единица измерения</th>
+            <th>Сырье</th>
             <th>Количество</th>
-            <th>Цена</th>
+            <th>Сумма</th>
+            <th>Дата</th>
             <th>Действия</th>
         </tr>
     </thead>
@@ -22,14 +18,12 @@
         @foreach (var item in Model)
         {
             <tr>
-                <td>@item.Id</td>
-                <td>@item.Name</td>
-                <td>@item.Unit?.Name</td>
+                <td>@item.RawMaterialModel.Name</td>
                 <td>@item.Quantity</td>
-                <td>@item.Price</td>
+                <td>@item.Amount</td>
+                <td>@item.Date.ToLocalTime().ToString("yyyy-MM-dd")</td>
                 <td>
-                    <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-info">Редактировать</a>
-
+                    <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-warning">Редактировать</a>
                     <form asp-action="Delete" asp-route-id="@item.Id" method="post" style="display:inline-block;"
                           onsubmit="return confirm('Вы уверены, что хотите удалить этот элемент?');">
                         <button type="submit" class="btn btn-danger">Удалить</button>
@@ -37,7 +31,5 @@
                 </td>
             </tr>
         }
-       
-
     </tbody>
 </table>

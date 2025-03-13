@@ -1,5 +1,48 @@
-﻿@*
-    For more information on enabling MVC for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
-*@
+﻿@model WebServiceCosmetics.Models.ProductModel
+
 @{
+    ViewData["Title"] = "Добавить продукт";
 }
+
+<form asp-action="Create" method="post" enctype="multipart/form-data">
+    @Html.AntiForgeryToken()
+
+    <div class="form-group">
+        <label asp-for="Name">Наименование</label>
+        <input asp-for="Name" class="form-control" required />
+        <span asp-validation-for="Name" class="text-danger"></span>
+    </div>
+
+    <div class="form-group">
+        <label asp-for="Unit_id">Единица измерения</label>
+        <select asp-for="Unit_id" class="form-control" asp-items="ViewBag.Units" required>
+
+        </select>
+        <span asp-validation-for="Unit_id" class="text-danger"></span>
+    </div>
+
+    <div class="form-group">
+        <label asp-for="Quantity">Количество</label>
+        <input asp-for="Quantity" type="number" step="0.01" class="form-control" required />
+        <span asp-validation-for="Quantity" class="text-danger"></span>
+    </div>
+
+    <div class="form-group">
+        <label asp-for="Price">Цена</label>
+        <input asp-for="Price" type="number" step="0.01" class="form-control" required />
+        <div class="input-group-append">
+            <span class="input-group-text">Сом</span>
+        </div>
+        <span asp-validation-for="Price" class="text-danger"></span>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Сохранить</button>
+    <a asp-action="Index" class="btn btn-secondary">Отмена</a>
+</form>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}
+

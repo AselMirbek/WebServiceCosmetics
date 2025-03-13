@@ -1,0 +1,20 @@
+﻿@model WebServiceCosmetics.Models.BudgetModel
+
+@{
+    ViewData["Title"] = "Редактирование бюджета";
+}
+
+<h2>Редактирование бюджета</h2>
+
+<form asp-action="Edit" method="post">
+    <div class="form-group">
+        <label>Сумма бюджета</label>
+        <input asp-for="Amount" class="form-control" type="number" step="0.01" required />
+        <div class="input-group-append">
+            <span class="input-group-text">Сом</span>
+        </div>
+    </div>
+    <br />
+    <button type="submit" class="btn btn-success">Сохранить</button>
+    <a asp-action="Index" class="btn btn-secondary">Назад</a>
+</form>

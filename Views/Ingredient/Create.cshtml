@@ -1,25 +1,47 @@
 ﻿@model WebServiceCosmetics.Models.IngredientModel
-
 @{
     ViewData["Title"] = "Добавить ингредиент";
+    var productId = ViewBag.Product_Id; // Получаем переданный ID продукта
+    var product = ViewBag.ProductName;
+    var rawMaterials = ViewBag.RawMaterials as SelectList; // Получаем список сырья
 }
 
-<h2>Добавить ингредиент</h2>
+<h2>Добавить ингредиент для продукта</h2>
 
-<form asp-action="Create">
-    <div class="mb-3">
-        <label class="form-label">ID сырья</label>
-        <input asp-for="Raw_Material_id" class="form-control" />
+@if (!ViewData.ModelState.IsValid)
+{
+    <div class="alert alert-danger">
+        @Html.ValidationSummary(false, "", new { @class = "text-danger" })
     </div>
-    <div class="mb-3">
-        <label class="form-label">ID продукта</label>
-        <input asp-for="Product_id" class="form-control" />
+}
+
+<form asp-action="Create" method="post">
+    @Html.AntiForgeryToken() <!-- Вставляем токен CSRF для защиты -->
+
+    <input type="hidden" name="Product_id" value="@productId" /> <!-- Передаем ID продукта -->
+    <h3>Продукт: @ViewBag.ProductName</h3>
+
+
+    <div class="form-group">
+        <label for="Raw_Material_id">Выберите сырье:</label>
+        <select class="form-control" id="Raw_Material_id" name="Raw_Material_id" required>
+            <option value="">-- Выберите сырье --</option>
+            @foreach (var item in rawMaterials)
+            {
+                <option value="@item.Value">@item.Text</option>
+            }
+        </select>
+        @Html.ValidationMessageFor(model => model.Raw_Material_id, "", new { @class = "text-danger" })
+
     </div>
-    <div class="mb-3">
-        <label class="form-label">Количество</label>
-        <input asp-for="Quantity" class="form-control" />
+
+    <div class="form-group">
+        <label for="quantity">Количество:</label>
+        <input type="number" class="form-control" id="quantity" asp-for="Quantity" name="Quantity" step="0.01" min="0" required />
+        @Html.ValidationMessageFor(model => model.Quantity, "", new { @class = "text-danger" })
     </div>
-    <button type="submit" class="btn btn-success">Сохранить</button>
+
+
+ 
+    <button type="submit" class="btn btn-primary">Добавить</button>
 </form>
-
-<a asp-action="Index" class="btn btn-secondary mt-3">Назад</a>

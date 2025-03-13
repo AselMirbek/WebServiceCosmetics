@@ -44,19 +44,31 @@ namespace WebServiceCosmetics.Controllers
 
         // POST: RawMaterials/Create
 
-
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(RawMaterialModel material)
         {
+            _logger.LogInformation("Валидация ModelState началась.");
+
             // Проверка обязательности Unit_id
             if (material.Unit_id == 0)
             {
                 ModelState.AddModelError("Unit_id", "Выберите единицу измерения");
             }
 
+            _logger.LogInformation($"ModelState.IsValid: {ModelState.IsValid}");
+
             if (!ModelState.IsValid)
             {
+                foreach (var key in ModelState.Keys)
+                {
+                    var errors = ModelState[key].Errors.Select(e => e.ErrorMessage).ToList();
+                    foreach (var error in errors)
+                    {
+                        _logger.LogError($"Ошибка в поле '{key}': {error}");
+                    }
+                }
+
                 ViewBag.Units = new SelectList(_context.Units, "Id", "Name", material.Unit_id);
                 return View(material);
             }
@@ -64,24 +76,13 @@ namespace WebServiceCosmetics.Controllers
             try
             {
                 _context.Add(material);
-
-                // Логируем состояние сущностей перед сохранением
-                var entries = _context.ChangeTracker.Entries();
-                foreach (var entry in entries)
-                {
-                    _logger.LogInformation($"Entity: {entry.Entity.GetType().Name}, State: {entry.State}");
-                }
-
                 await _context.SaveChangesAsync();
                 _logger.LogInformation("Сохранение прошло успешно.");
-
                 return RedirectToAction(nameof(Index));
             }
             catch (Exception ex)
             {
                 _logger.LogError($"Ошибка БД: {ex.Message}");
-                _logger.LogError($"Стек ошибки: {ex.StackTrace}");
-
                 if (ex.InnerException != null)
                 {
                     _logger.LogError($"InnerException: {ex.InnerException?.Message}");
@@ -91,8 +92,8 @@ namespace WebServiceCosmetics.Controllers
                 ViewBag.Units = new SelectList(_context.Units, "Id", "Name", material.Unit_id);
                 return View(material);
             }
-
         }
+
 
         // POST: RawMaterials/Edit/5
         [HttpPost]
@@ -103,11 +104,52 @@ namespace WebServiceCosmetics.Controllers
 
             if (ModelState.IsValid)
             {
-                _context.Update(material);
-                await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(Index));
+                try
+                {
+                    _context.Update(material);
+                    await _context.SaveChangesAsync();
+                    return RedirectToAction(nameof(Index));
+                }
+                catch (DbUpdateConcurrencyException)
+                {
+                    if (!RawMaterialbExists(material.Id))
+                    {
+                        return NotFound();
+                    }
+                    else
+                    {
+                        throw;
+                    }
+                }
             }
+            // Обновляем список единиц измерения в случае ошибки валидации
+            ViewBag.Units = new SelectList(_context.Units, "Id", "Name", material.Unit_id);
             return View(material);
+        }
+
+        // GET: RawMaterials/Edit/5
+        public async Task<IActionResult> Edit(int? id)
+        {
+            if (id == null)
+            {
+                return NotFound();
+            }
+
+            var material = await _context.Raw_Materials
+                .Include(r => r.Unit) // Подгружаем связанные данные, если нужно
+                .FirstOrDefaultAsync(r => r.Id == id);
+
+            if (material == null)
+            {
+                return NotFound();
+            }
+
+            ViewBag.Units = new SelectList(_context.Units, "Id", "Name", material.Unit_id);
+            return View(material);
+        }
+        private bool RawMaterialbExists(int id)
+        {
+            return _context.Raw_Materials.Any(e => e.Id == id);
         }
 
         // Удалить сырьё

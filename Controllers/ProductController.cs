@@ -3,61 +3,103 @@
 
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using WebServiceCosmetics.Data;
 using WebServiceCosmetics.Models;
-using System.Threading.Tasks;
-using System.Linq;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Mvc.Rendering;
+using System;
+
 
 namespace WebServiceCosmetics.Controllers
 {
     public class ProductController : Controller
     {
+
+        private readonly ILogger<ProductController> _logger;
+
+
+
         private readonly ApplicationDbContext _context;
 
-        public ProductController(ApplicationDbContext context)
+        public ProductController(ApplicationDbContext context, ILogger<ProductController> logger)
         {
             _context = context;
+            _logger = logger;
         }
 
         // GET: Product
         public async Task<IActionResult> Index()
         {
-            var products = await _context.Products.ToListAsync();
+            var products = await _context.Product
+                .Include(r => r.Unit)
+                .ToListAsync();
             return View(products);
         }
+
 
         // GET: Product/Create
         public IActionResult Create()
         {
-            return View();
+            ViewBag.Units = new SelectList(_context.Units, "Id", "Name");
+            return View(new ProductModel());
         }
 
         // POST: Product/Create
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(ProductModel product)
         {
-            if (ModelState.IsValid)
+            _logger.LogInformation("Валидация ModelState началась.");
+
+            // Проверка обязательности Unit_id
+            if (product.Unit_id == 0)
+            {
+                ModelState.AddModelError("Unit_id", "Выберите единицу измерения");
+            }
+
+            _logger.LogInformation($"ModelState.IsValid: {ModelState.IsValid}");
+
+            if (!ModelState.IsValid)
+            {
+                foreach (var key in ModelState.Keys)
+                {
+                    var errors = ModelState[key].Errors.Select(e => e.ErrorMessage).ToList();
+                    foreach (var error in errors)
+                    {
+                        _logger.LogError($"Ошибка в поле '{key}': {error}");
+                    }
+                }
+
+                ViewBag.Units = new SelectList(_context.Units, "Id", "Name", product.Unit_id);
+                return View(product);
+            }
+
+            try
             {
                 _context.Add(product);
                 await _context.SaveChangesAsync();
+                _logger.LogInformation("Сохранение прошло успешно.");
                 return RedirectToAction(nameof(Index));
             }
-            return View(product);
+            catch (Exception ex)
+            {
+                _logger.LogError($"Ошибка БД: {ex.Message}");
+                if (ex.InnerException != null)
+                {
+                    _logger.LogError($"InnerException: {ex.InnerException?.Message}");
+                }
+
+                ModelState.AddModelError("", "Ошибка при сохранении. Проверьте корректность данных.");
+                ViewBag.Units = new SelectList(_context.Units, "Id", "Name", product.Unit_id);
+                return View(product);
+            }
         }
 
-        // GET: Product/Edit/5
-        public async Task<IActionResult> Edit(int? id)
-        {
-            if (id == null) return NotFound();
 
-            var product = await _context.Products.FindAsync(id);
-            if (product == null) return NotFound();
-
-            return View(product);
-        }
-
-        // POST: Product/Edit/5
+        // POST: RawMaterials/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id, ProductModel product)
@@ -66,37 +108,67 @@ namespace WebServiceCosmetics.Controllers
 
             if (ModelState.IsValid)
             {
-                _context.Update(product);
-                await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(Index));
+                try
+                {
+                    _context.Update(product);
+                    await _context.SaveChangesAsync();
+                    return RedirectToAction(nameof(Index));
+                }
+                catch (DbUpdateConcurrencyException)
+                {
+                    if (!RawMaterialbExists(product.Id))
+                    {
+                        return NotFound();
+                    }
+                    else
+                    {
+                        throw;
+                    }
+                }
             }
+            // Обновляем список единиц измерения в случае ошибки валидации
+            ViewBag.Units = new SelectList(_context.Units, "Id", "Name", product.Unit_id);
             return View(product);
         }
 
-        // GET: Product/Delete/5
-        public async Task<IActionResult> Delete(int? id)
+        // GET: RawMaterials/Edit/5
+        public async Task<IActionResult> Edit(int? id)
         {
-            if (id == null) return NotFound();
+            if (id == null)
+            {
+                return NotFound();
+            }
 
-            var product = await _context.Products.FindAsync(id);
-            if (product == null) return NotFound();
+            var product = await _context.Product
+                .Include(r => r.Unit) // Подгружаем связанные данные, если нужно
+                .FirstOrDefaultAsync(r => r.Id == id);
 
+            if (product == null)
+            {
+                return NotFound();
+            }
+
+            ViewBag.Units = new SelectList(_context.Units, "Id", "Name", product.Unit_id);
             return View(product);
         }
+        private bool RawMaterialbExists(int id)
+        {
+            return _context.Raw_Materials.Any(e => e.Id == id);
+        }
 
-        // POST: Product/Delete/5
+        // Удалить сырьё
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
-            var product = await _context.Products.FindAsync(id);
+            var product = await _context.Product.FindAsync(id);
             if (product != null)
             {
-                _context.Products.Remove(product);
+                _context.Product.Remove(product);
                 await _context.SaveChangesAsync();
             }
             return RedirectToAction(nameof(Index));
         }
+
     }
 }
-

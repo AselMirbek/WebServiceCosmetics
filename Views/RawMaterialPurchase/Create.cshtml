@@ -1,0 +1,32 @@
+﻿@model WebServiceCosmetics.Models.RawMaterialPurchaseModel
+
+<h2>Добавить закупку</h2>
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger">
+        @TempData["ErrorMessage"]
+    </div>
+}
+
+<form asp-action="Create">
+    <div class="form-group">
+        <label>Сырье</label>
+        <select asp-for="Raw_Material_id" asp-items="@(new SelectList(ViewBag.RawMaterials, "Id", "Name"))" class="form-control"></select>
+    </div>
+    <div class="form-group">
+        <label>Количество</label>
+        <input asp-for="Quantity" class="form-control" />
+    </div>
+    <div class="form-group">
+        <label>Сумма</label>
+        <input asp-for="Amount" class="form-control" />
+        <div class="input-group-append">
+            <span class="input-group-text">Сом</span>
+        </div>
+    </div>
+    <div class="form-group">
+        <label>Дата</label>
+        <input asp-for="Date" type="date" class="form-control" />
+    </div>
+    <button type="submit" class="btn btn-success">Сохранить</button>
+</form>

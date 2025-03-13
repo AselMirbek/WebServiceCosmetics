@@ -8,18 +8,23 @@
 
 <form asp-action="Edit">
     <input type="hidden" asp-for="Id" />
+
     <div class="mb-3">
-        <label class="form-label">ID сырья</label>
-        <input asp-for="Raw_Material_id" class="form-control" />
+        <label class="form-label">Продукт</label>
+        <input class="form-control" value="@ViewBag.ProductName" readonly />
+        <input type="hidden" asp-for="Product_id" /> <!-- Скрытое поле для передачи ID -->
     </div>
     <div class="mb-3">
-        <label class="form-label">ID продукта</label>
-        <input asp-for="Product_id" class="form-control" />
+        <label class="form-label">Сырье</label>
+        <select class="form-control" asp-for="Raw_Material_id" asp-items="ViewBag.RawMaterials"></select>
     </div>
-    <div class="mb-3">
-        <label class="form-label">Количество</label>
-        <input asp-for="Quantity" class="form-control" />
+
+    <div class="form-group">
+        <label for="quantity">Количество:</label>
+        <!-- Используем asp-for для привязки к свойству модели Quantity -->
+        <input type="number" class="form-control" id="quantity" name="Quantity" step="0.01" min="0" required asp-for="Quantity" />
     </div>
+
     <button type="submit" class="btn btn-primary">Сохранить</button>
 </form>
 

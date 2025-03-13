@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
 using WebServiceCosmetics.Models;
 
 namespace WebServiceCosmetics.Models
@@ -18,6 +19,8 @@ namespace WebServiceCosmetics.Models
 
         // Навигационное свойство для связи с единицей измерения
         [ForeignKey("Position_id")]
+        [ValidateNever]
+
         public Positions Positions { get; set; }
         public decimal Salary { get; set; }
         public string Address { get; set; }
