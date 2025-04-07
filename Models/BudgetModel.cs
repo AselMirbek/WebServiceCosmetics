@@ -15,7 +15,9 @@ namespace WebServiceCosmetics.Models
 
         public int Id { get; set; }
         public decimal Amount { get; set; }
-       
+        public decimal? Persent { get; set; } // процент прибыли при продаже
+
+
 
 
     }

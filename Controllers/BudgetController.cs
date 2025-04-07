@@ -41,7 +41,6 @@ namespace WebServiceCosmetics.Controllers
             return View(budget);
         }
 
-        // POST: Budget/Edit
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(BudgetModel budgetModel)
@@ -55,10 +54,10 @@ namespace WebServiceCosmetics.Controllers
                     return NotFound();
                 }
 
-                // Обновление значений на основе данных из модели
+                // Обновляем поля
                 budget.Amount = budgetModel.Amount;
+                budget.Persent = budgetModel.Persent;
 
-                // Сохранение изменений в базе данных
                 _context.Update(budget);
                 await _context.SaveChangesAsync();
 
@@ -67,18 +66,5 @@ namespace WebServiceCosmetics.Controllers
             return View(budgetModel);
         }
 
-        // Метод для уменьшения бюджета при закупке сырья
-        public async Task<bool> DecreaseBudget(decimal amount)
-        {
-            var budget = await _context.Budget.FirstOrDefaultAsync();
-            if (budget == null || budget.Amount < amount)
-            {
-                return false; // Недостаточно средств
-            }
-
-            budget.Amount -= amount;
-            await _context.SaveChangesAsync();
-            return true;
-        }
     }
 }

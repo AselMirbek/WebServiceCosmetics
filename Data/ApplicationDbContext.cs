@@ -18,6 +18,12 @@ public class ApplicationDbContext : IdentityDbContext<CustomUser>
     public DbSet<Unit> Units { get; set; }
     public DbSet<BudgetModel> Budget { get; set; }
     public DbSet<RawMaterialPurchaseModel> Raw_Materials_Purchase { get; set; }
+    public DbSet<ProductManufacturingModel> Product_Manufacturing { get; set; }
+
+    public DbSet<ProductSalesModel> Product_Sales { get; set; }
+
+
+
 
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) { }
 
@@ -119,6 +125,56 @@ public class ApplicationDbContext : IdentityDbContext<CustomUser>
            .HasColumnType("decimal(10,2)");
         builder.Entity<BudgetModel>().ToTable("Budget");
 
+        //ProductManufacturingModel 
+
+        builder.Entity<ProductManufacturingModel>()
+.Property(r => r.Product_id)
+.HasColumnType("int");
+        builder.Entity<ProductManufacturingModel>()
+           .Property(r => r.Quantity)
+           .HasColumnType("decimal(10,2)");
+   
+        builder.Entity<ProductManufacturingModel>()
+        .Property(r => r.Date)
+        .HasColumnType("datetime");
+
+        builder.Entity<ProductManufacturingModel>().ToTable("Product_Manufacturing");
+
+        builder.Entity<ProductManufacturingModel>()
+         .HasOne(r => r.ProductModel)
+         .WithMany(u => u.Product_Manufacturing)
+         .HasForeignKey(r => r.Product_id)
+         .OnDelete(DeleteBehavior.Restrict);
+
+
+       
+
+        
+
+        //ProductSalesModel
+
+        builder.Entity<ProductSalesModel>()
+.Property(r => r.Product_id)
+.HasColumnType("int");
+        builder.Entity<ProductSalesModel>()
+           .Property(r => r.Quantity)
+           .HasColumnType("decimal(10,2)");
+        builder.Entity<ProductSalesModel>()
+         .Property(r => r.Amount)
+         .HasColumnType("decimal(10,2)");
+
+        builder.Entity<ProductSalesModel>()
+        .Property(r => r.Date)
+        .HasColumnType("datetime");
+
+        builder.Entity<ProductSalesModel>().ToTable("Product_Sales");
+
+        builder.Entity<ProductSalesModel>()
+         .HasOne(r => r.ProductModel)
+         .WithMany(u => u.Product_Sales)
+         .HasForeignKey(r => r.Product_id)
+         .OnDelete(DeleteBehavior.Restrict);
+
 
 
         builder.Entity<Employer>()
@@ -132,6 +188,9 @@ public class ApplicationDbContext : IdentityDbContext<CustomUser>
         builder.Entity<ProductModel>().ToTable("Product");
         builder.Entity<RawMaterialPurchaseModel>().ToTable("Raw_Materials_Purchase");
         builder.Entity<BudgetModel>().ToTable("Budget");
+        builder.Entity<ProductManufacturingModel>().ToTable("Product_Manufacturing");
+        builder.Entity<ProductSalesModel>().ToTable("Product_Sales");
+
 
 
     }

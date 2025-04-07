@@ -23,7 +23,7 @@ namespace WebServiceCosmetics.Models
         public RawMaterialModel RawMaterialModel { get; set; }
         public decimal Quantity { get; set; }
         public decimal Amount { get; set; }
-        public DateTime Date { get; set; }
+        public DateTime Date { get; set; } = DateTime.Now;
 
 
 

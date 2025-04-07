@@ -1,0 +1,37 @@
+﻿@model WebServiceCosmetics.Models.ProductSalesModel
+
+@{
+    ViewData["Title"] = "Редактировать продажу продукта";
+}
+
+<h1>Редактировать продажу продукта</h1>
+
+<form method="post">
+    <div class="form-group">
+        <label for="Product_id">Продукт</label>
+        <select asp-for="Product_id" class="form-control" asp-items="ViewBag.Product_id"></select>
+    </div>
+
+    <div class="form-group">
+        <label for="Quantity">Количество</label>
+        <input asp-for="Quantity" class="form-control" />
+        <span asp-validation-for="Quantity" class="text-danger"></span>
+    </div>
+
+    <div class="form-group">
+        <label for="Amount">Сумма</label>
+        <input asp-for="Amount" class="form-control" />
+        <span asp-validation-for="Amount" class="text-danger"></span>
+    </div>
+
+    <div class="form-group">
+        <label for="Date">Дата</label>
+        <input asp-for="Date" class="form-control" type="date" />
+        <span asp-validation-for="Date" class="text-danger"></span>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Сохранить</button>
+</form>
+
+<a href="@Url.Action("Index", "ProductSales")" class="btn btn-secondary">Назад</a>
+

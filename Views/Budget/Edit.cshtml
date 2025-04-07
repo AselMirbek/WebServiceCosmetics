@@ -14,6 +14,12 @@
             <span class="input-group-text">Сом</span>
         </div>
     </div>
+    <div class="form-group">
+        <label asp-for="Persent" class="control-label"></label>
+        <input asp-for="Persent" class="form-control" />
+        <span asp-validation-for="Persent" class="text-danger"></span>
+    </div>
+
     <br />
     <button type="submit" class="btn btn-success">Сохранить</button>
     <a asp-action="Index" class="btn btn-secondary">Назад</a>

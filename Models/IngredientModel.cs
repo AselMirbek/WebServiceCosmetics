@@ -25,7 +25,6 @@ namespace WebServiceCosmetics.Models
         [Range(0, double.MaxValue, ErrorMessage = "Количество должно быть больше или равно 0.")]
 
         public decimal Quantity { get; set; }
-       
     }
 }
 

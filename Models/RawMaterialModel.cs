@@ -30,6 +30,7 @@ namespace WebServiceCosmetics.Models
         [Required(ErrorMessage = "Необходимо добавить хотя бы один ингредиент.")]
 
         public ICollection<IngredientModel> ingredient { get; set; } = new List<IngredientModel>();
+        //public ICollection<ProductManufacturingModel> Product_Manufacturing { get; set; } = new List<ProductManufacturingModel>();
 
         public ICollection<RawMaterialPurchaseModel> Raw_Materials_Purchase { get; set; } = new List<RawMaterialPurchaseModel>();
 

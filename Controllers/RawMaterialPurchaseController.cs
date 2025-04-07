@@ -64,7 +64,7 @@ namespace WebServiceCosmetics.Controllers
             if (rawMaterial != null)
             {
                 rawMaterial.Quantity += purchase.Quantity;
-                rawMaterial.Price = purchase.Amount / purchase.Quantity;
+                rawMaterial.Price += purchase.Amount;
                 _context.Update(rawMaterial);
             }
 
