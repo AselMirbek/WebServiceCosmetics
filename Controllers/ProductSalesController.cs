@@ -34,18 +34,22 @@ namespace WebServiceCosmetics.Controllers
             ViewData["Product_id"] = new SelectList(_context.Product, "Id", "Name"); // Assuming Product has Name property
             return View();
         }
-
+        // POST: ProductSales/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create([Bind("Product_id,Quantity,Amount,Date")] ProductSalesModel productSalesModel)
         {
             if (ModelState.IsValid)
             {
-                var productIdParam = new SqlParameter("@Product_id", productSalesModel.Product_id);
-                var quantityParam = new SqlParameter("@Quantity", productSalesModel.Quantity);
-                var amountParam = new SqlParameter("@Amount", productSalesModel.Amount);
-                var dateParam = new SqlParameter("@Date", productSalesModel.Date);
+                // Приведение Amount к типу decimal(10,2)
+                decimal salePrice = Math.Round(productSalesModel.Amount, 2);
 
+                // Параметры для хранимой процедуры
+                var productIdParam = new SqlParameter("@ProductID", productSalesModel.Product_id);
+                var quantityParam = new SqlParameter("@Quantity", productSalesModel.Quantity);
+                var salePriceParam = new SqlParameter("@SalePrice", salePrice);
+
+                // Параметры для вывода результата хранимой процедуры
                 var resultParam = new SqlParameter("@Result", SqlDbType.Bit)
                 {
                     Direction = ParameterDirection.Output
@@ -56,26 +60,52 @@ namespace WebServiceCosmetics.Controllers
                     Direction = ParameterDirection.Output
                 };
 
-                await _context.Database.ExecuteSqlRawAsync(
-                    "EXEC SP_CheckAndInsertSale @Product_id, @Quantity, @Amount, @Date, @Result OUTPUT, @Message OUTPUT",
-                    productIdParam, quantityParam, amountParam, dateParam, resultParam, messageParam
-                );
-
-                bool result = (bool)resultParam.Value;
-                string message = messageParam.Value?.ToString();
-
-                if (result)
+                try
                 {
-                    return RedirectToAction(nameof(Index));
-                }
+                    // Вызов хранимой процедуры для обработки продажи
+                    await _context.Database.ExecuteSqlRawAsync(
+                        "EXEC SP_CheckAndProcessSale @ProductID, @Quantity, @SalePrice, @Result OUTPUT, @Message OUTPUT",
+                        productIdParam, quantityParam, salePriceParam, resultParam, messageParam
+                    );
 
-                // если ошибка
-                ModelState.AddModelError(string.Empty, message);
+                    // Получаем результат из хранимой процедуры
+                    bool result = (bool)resultParam.Value;
+                    string message = messageParam.Value?.ToString();
+
+                    // Если продажа прошла успешно, добавляем запись в Product_Sales
+                    if (result)
+                    {
+                        var productSale = new ProductSalesModel
+                        {
+                            Product_id = productSalesModel.Product_id,
+                            Quantity = productSalesModel.Quantity,
+                            Amount = salePrice,
+                            Date = productSalesModel.Date
+                        };
+
+                        // Добавляем запись о продаже в таблицу Product_Sales
+                        _context.Product_Sales.Add(productSale);
+                        await _context.SaveChangesAsync();
+
+                        // Перенаправляем на страницу со списком продаж
+                        return RedirectToAction(nameof(Index));
+                    }
+
+                    // Если произошла ошибка, выводим сообщение об ошибке
+                    ModelState.AddModelError(string.Empty, message);
+                }
+                catch (SqlException ex)
+                {
+                    // Логируем ошибку и добавляем сообщение в ModelState
+                    ModelState.AddModelError(string.Empty, "Ошибка при выполнении запроса: " + ex.Message);
+                }
             }
 
+            // Если модель не прошла валидацию, возвращаем данные в форму
             ViewData["Product_id"] = new SelectList(_context.Product, "Id", "Name", productSalesModel.Product_id);
             return View(productSalesModel);
         }
+
 
 
         // GET: ProductSales/Edit/5
