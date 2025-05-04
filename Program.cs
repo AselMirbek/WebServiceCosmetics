@@ -58,6 +58,7 @@ app.Use(async (context, next) =>
     }
 });
 
+
 app.UseRouting();
 app.UseAuthentication();  // Добавляем аутентификацию
 

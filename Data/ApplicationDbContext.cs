@@ -157,6 +157,9 @@ public class ApplicationDbContext : IdentityDbContext<CustomUser>
 .Property(r => r.Product_id)
 .HasColumnType("int");
         builder.Entity<ProductSalesModel>()
+.Property(r => r.Employees_id)
+.HasColumnType("int");
+        builder.Entity<ProductSalesModel>()
            .Property(r => r.Quantity)
            .HasColumnType("decimal(10,2)");
         builder.Entity<ProductSalesModel>()
@@ -175,13 +178,43 @@ public class ApplicationDbContext : IdentityDbContext<CustomUser>
          .HasForeignKey(r => r.Product_id)
          .OnDelete(DeleteBehavior.Restrict);
 
+        builder.Entity<ProductSalesModel>()
+    .HasOne(r => r.Employees)
+    .WithMany(u => u.Product_Sales)
+    .HasForeignKey(r => r.Employees_id)
+    .OnDelete(DeleteBehavior.Restrict);
 
+
+        //Employer
 
         builder.Entity<Employer>()
-          .HasOne(r => r.Positions)
-          .WithMany(u => u.Employer)
-          .HasForeignKey(r => r.Position_id)
-          .OnDelete(DeleteBehavior.Restrict);
+.Property(r => r.Position_id)
+.HasColumnType("int");
+      
+        builder.Entity<Employer>()
+           .Property(r => r.Full_Name)
+           .HasColumnType("VARCHAR(255)");
+        builder.Entity<Employer>()
+           .Property(r => r.Address)
+           .HasColumnType("VARCHAR(255)");
+
+        builder.Entity<Employer>()
+         .Property(r => r.Phone)
+           .HasColumnType("VARCHAR(15)");
+        builder.Entity<Employer>()
+      .Property(r => r.Salary)
+         .HasColumnType("decimal(10,2)");
+
+        builder.Entity<Employer>().ToTable("Employees");
+
+        builder.Entity<Employer>()
+         .HasOne(r => r.Positions)
+         .WithMany(u => u.Employees)
+         .HasForeignKey(r => r.Position_id)
+         .OnDelete(DeleteBehavior.Restrict);
+
+    
+
         base.OnModelCreating(builder);
         builder.Entity<RawMaterialModel>().ToTable("Raw_Materials");
         builder.Entity<IngredientModel>().ToTable("Ingredient");

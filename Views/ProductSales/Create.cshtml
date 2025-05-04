@@ -1,37 +1,41 @@
 ﻿@model WebServiceCosmetics.Models.ProductSalesModel
 
 @{
-    ViewData["Title"] = "Создать продажу продукта";
+    ViewData["Title"] = "Создание продажи";
 }
 
-<h1>Создать продажу продукта</h1>
+<h1>@ViewData["Title"]</h1>
 
-<form method="post">
+<form asp-action="Create" method="post">
     <div class="form-group">
-        <label for="Product_id">Продукт</label>
-        <select asp-for="Product_id" class="form-control" asp-items="ViewBag.Product_id"></select>
+        <label asp-for="Product_id" class="control-label"></label>
+        <select asp-for="Product_id" class="form-control" asp-items="ViewBag.Product"></select>
+        <span asp-validation-for="Product_id" class="text-danger"></span>
     </div>
 
     <div class="form-group">
-        <label for="Quantity">Количество</label>
-        <input asp-for="Quantity" type="number" step="0.01" class="form-control" required />
+        <label asp-for="Employees_id" class="control-label"></label>
+        <select asp-for="Employees_id" class="form-control" asp-items="ViewBag.Employees"></select>
+        <span asp-validation-for="Employees_id" class="text-danger"></span>
+    </div>
+
+    <div class="form-group">
+        <label asp-for="Quantity" class="control-label"></label>
+        <input asp-for="Quantity" class="form-control" />
         <span asp-validation-for="Quantity" class="text-danger"></span>
     </div>
 
     <div class="form-group">
-        <label for="Amount">Сумма</label>
-        <input asp-for="Amount" type="number" step="0.01" class="form-control" required />
-        <span asp-validation-for="Amount" class="text-danger"></span>
+        <label>Дата</label>
+        <input asp-for="Date" type="date" class="form-control" value="@DateTime.Now.ToString("yyyy-MM-dd")" />
     </div>
-
-    <div class="form-group">
-        <label for="Date">Дата</label>
-        <input asp-for="Date" class="form-control" type="date" />
-        <span asp-validation-for="Date" class="text-danger"></span>
-    </div>
-
     <button type="submit" class="btn btn-primary">Создать</button>
 </form>
 
-<a href="@Url.Action("Index", "ProductSales")" class="btn btn-secondary">Назад</a>
+<a asp-action="Index">Назад</a>
 
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

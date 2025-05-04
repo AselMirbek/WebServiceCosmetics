@@ -6,8 +6,13 @@ using WebServiceCosmetics.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using System;
+using System.Linq;
+using Microsoft.Data.SqlClient;
+using System.Threading.Tasks;
+
 using Microsoft.Data.SqlClient;
 using System.Data;
+using Microsoft.EntityFrameworkCore.Storage;
 namespace WebServiceCosmetics.Controllers
 {
     public class ProductSalesController : Controller
@@ -24,89 +29,118 @@ namespace WebServiceCosmetics.Controllers
         {
             var productSales = await _context.Product_Sales
                                               .Include(p => p.ProductModel)
+                                              .Include(p => p.Employees)
+
                                               .ToListAsync();
             return View(productSales);
         }
+        // GET: SaleProducts/Details/5
+        public async Task<IActionResult> Details(int? id)
+        {
+            if (id == null)
+            {
+                return NotFound();
+            }
 
+            var saleProduct = await _context.Product_Sales
+                .Include(p => p.Employees)
+                .Include(p => p.ProductModel)
+                .FirstOrDefaultAsync(m => m.Id == id); // Поиск по ID
+
+            return saleProduct == null ? NotFound() : View(saleProduct);
+        }
         // GET: ProductSales/Create
         public IActionResult Create()
         {
-            ViewData["Product_id"] = new SelectList(_context.Product, "Id", "Name"); // Assuming Product has Name property
+            // Загружаем список продуктов и сотрудников для выбора в форме
+            ViewBag.Product = new SelectList(_context.Product, "Id", "Name");
+            ViewBag.Employees = new SelectList(_context.Employees, "Id", "Full_Name");
+
             return View();
         }
         // POST: ProductSales/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("Product_id,Quantity,Amount,Date")] ProductSalesModel productSalesModel)
+        public async Task<IActionResult> Create([Bind("Product_id,Employees_id,Quantity,Amount")] ProductSalesModel productSales)
         {
-            if (ModelState.IsValid)
+            if (!ModelState.IsValid)
             {
-                // Приведение Amount к типу decimal(10,2)
-                decimal salePrice = Math.Round(productSalesModel.Amount, 2);
-
-                // Параметры для хранимой процедуры
-                var productIdParam = new SqlParameter("@ProductID", productSalesModel.Product_id);
-                var quantityParam = new SqlParameter("@Quantity", productSalesModel.Quantity);
-                var salePriceParam = new SqlParameter("@SalePrice", salePrice);
-
-                // Параметры для вывода результата хранимой процедуры
-                var resultParam = new SqlParameter("@Result", SqlDbType.Bit)
-                {
-                    Direction = ParameterDirection.Output
-                };
-
-                var messageParam = new SqlParameter("@Message", SqlDbType.NVarChar, 255)
-                {
-                    Direction = ParameterDirection.Output
-                };
-
-                try
-                {
-                    // Вызов хранимой процедуры для обработки продажи
-                    await _context.Database.ExecuteSqlRawAsync(
-                        "EXEC SP_CheckAndProcessSale @ProductID, @Quantity, @SalePrice, @Result OUTPUT, @Message OUTPUT",
-                        productIdParam, quantityParam, salePriceParam, resultParam, messageParam
-                    );
-
-                    // Получаем результат из хранимой процедуры
-                    bool result = (bool)resultParam.Value;
-                    string message = messageParam.Value?.ToString();
-
-                    // Если продажа прошла успешно, добавляем запись в Product_Sales
-                    if (result)
-                    {
-                        var productSale = new ProductSalesModel
-                        {
-                            Product_id = productSalesModel.Product_id,
-                            Quantity = productSalesModel.Quantity,
-                            Amount = salePrice,
-                            Date = productSalesModel.Date
-                        };
-
-                        // Добавляем запись о продаже в таблицу Product_Sales
-                        _context.Product_Sales.Add(productSale);
-                        await _context.SaveChangesAsync();
-
-                        // Перенаправляем на страницу со списком продаж
-                        return RedirectToAction(nameof(Index));
-                    }
-
-                    // Если произошла ошибка, выводим сообщение об ошибке
-                    ModelState.AddModelError(string.Empty, message);
-                }
-                catch (SqlException ex)
-                {
-                    // Логируем ошибку и добавляем сообщение в ModelState
-                    ModelState.AddModelError(string.Empty, "Ошибка при выполнении запроса: " + ex.Message);
-                }
+                ViewBag.Product = new SelectList(_context.Product, "Id", "Name", productSales.Product_id);
+                ViewBag.Employees = new SelectList(_context.Employees, "Id", "Full_Name", productSales.Employees_id);
+                return View(productSales);
             }
 
-            // Если модель не прошла валидацию, возвращаем данные в форму
-            ViewData["Product_id"] = new SelectList(_context.Product, "Id", "Name", productSalesModel.Product_id);
-            return View(productSalesModel);
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                // Проверка наличия продукта
+                await using (var command = _context.Database.GetDbConnection().CreateCommand())
+                {
+                    command.Transaction = transaction.GetDbTransaction();
+                    command.CommandText = "CheckProductAvailability";
+                    command.CommandType = CommandType.StoredProcedure;
+
+                    command.Parameters.Add(new SqlParameter("@ProductId", SqlDbType.Int)
+                    {
+                        Value = productSales.Product_id
+                    });
+
+                    command.Parameters.Add(new SqlParameter("@RequiredQuantity", SqlDbType.Decimal)
+                    {
+                        Value = productSales.Quantity,
+                        Precision = 18,
+                        Scale = 2
+                    });
+
+                    var returnValue = new SqlParameter
+                    {
+                        ParameterName = "@ReturnVal",
+                        DbType = DbType.Int32,
+                        Direction = ParameterDirection.ReturnValue
+                    };
+                    command.Parameters.Add(returnValue);
+
+                    if (command.Connection.State != ConnectionState.Open)
+                        await command.Connection.OpenAsync();
+
+                    await command.ExecuteNonQueryAsync();
+
+                    int result = (int)returnValue.Value;
+                    if (result != 0)
+                    {
+                        return BadRequest("Не хватает продукта на складе.");
+                    }
+                }
+
+                // Получаем цену продукта
+                var product = await _context.Product.FindAsync(productSales.Product_id);
+                if (product == null)
+                    return BadRequest("Товар не найден");
+
+                productSales.Amount = (product.Price / product.Quantity) * productSales.Quantity;
+
+                // Добавляем продажу
+                _context.Add(productSales);
+                await _context.SaveChangesAsync();
+
+                int saleId = productSales.Id;
+
+                // Обновляем склад и бюджет
+                await _context.Database.ExecuteSqlRawAsync(
+                    "EXEC UpdateStockAndBudget @SaleId = {0}, @ProductId = {1}, @SoldQuantity = {2}",
+                    saleId, productSales.Product_id, productSales.Quantity);
+
+                // Фиксируем транзакцию
+                await transaction.CommitAsync();
+
+                return RedirectToAction(nameof(Index));
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return BadRequest($"Ошибка при выполнении транзакции: {ex.Message}");
+            }
         }
-
-
 
         // GET: ProductSales/Edit/5
         public async Task<IActionResult> Edit(int? id)

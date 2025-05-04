@@ -19,12 +19,18 @@ namespace WebServiceCosmetics.Models
             [ValidateNever]
 
             public ProductModel ProductModel { get; set; }
+        public int? Employees_id { get; set; }
+        [ForeignKey("Employees_id")]
+        [ValidateNever]
 
-            [Range(0, double.MaxValue, ErrorMessage = "Количество должно быть больше или равно 0.")]
+        public Employer Employees { get; set; }
+
+        [Range(0, double.MaxValue, ErrorMessage = "Количество должно быть больше или равно 0.")]
 
             public decimal Quantity { get; set; }
             public decimal Amount { get; set; }
-            public DateTime Date { get; set; }
+
+        public DateTime Date { get; set; }=  DateTime.Now;
 
 
 

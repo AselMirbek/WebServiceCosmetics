@@ -22,9 +22,13 @@ namespace WebServiceCosmetics.Models
         [ValidateNever]
 
         public Positions Positions { get; set; }
+   
+
         public decimal Salary { get; set; }
         public string Address { get; set; }
         public string Phone { get; set; }
+        public ICollection<ProductSalesModel> Product_Sales { get; set; } = new List<ProductSalesModel>();
+
     }
 }
 [Table("Positions")]
@@ -36,8 +40,8 @@ public class Positions
     public int Id { get; set; }
 
     public string Name { get; set; }
-    public ICollection<Employer> Employer { get; set; }
+    public ICollection<Employer> Employees { get; set; }
 }
 
-    
+
 
