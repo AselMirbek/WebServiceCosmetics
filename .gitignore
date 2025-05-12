@@ -365,4 +365,9 @@ MigrationBackup/
 .ionide/
 
 # Fody - auto-generated XML schema
+<<<<<<< HEAD
 FodyWeavers.xsd
+=======
+FodyWeavers.xsd"appsettings.json" 
+"Program.cs" 
+>>>>>>> 2744481 (Resolve conflicts)
