@@ -25,7 +25,7 @@ namespace WebServiceCosmetics.Controllers
         // GET: ProductManufacturing
         public async Task<IActionResult> Index()
         {
-            var productManufacturing = _context.Product_Manufacturing.Include(p => p.ProductModel);
+            var productManufacturing = _context.Product_Manufacturing.Include(p => p.ProductModel) .Include(p => p.Employees);
             return View(await productManufacturing.ToListAsync());
         }
         // GET: ProductManufacturings/Details/5
@@ -48,13 +48,13 @@ namespace WebServiceCosmetics.Controllers
             var products = await _context.Product.ToListAsync();
             // Передаем этот список в ViewBag
             ViewBag.Product_id = new SelectList(products, "Id", "Name");
-
+            ViewBag.Employees_id = new SelectList(_context.Employees, "Id", "Full_Name");
             return View();
         }
 
         // Обработка POST-запроса для создания записи о производстве продукта
         [HttpPost, ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("Id,Product_id,Quantity,Date")] ProductManufacturingModel productManufacturing)
+        public async Task<IActionResult> Create([Bind("Id,Product_id,Quantity,Date,Employees_id")] ProductManufacturingModel productManufacturing)
         {
             // Если модель не прошла валидацию — возвращаем форму создания с ошибками
             if (!ModelState.IsValid)

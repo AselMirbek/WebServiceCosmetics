@@ -21,7 +21,10 @@ public class ApplicationDbContext : IdentityDbContext<CustomUser>
     public DbSet<ProductManufacturingModel> Product_Manufacturing { get; set; }
 
     public DbSet<ProductSalesModel> Product_Sales { get; set; }
+    public DbSet<SalaryModel> Salary { get; set; }
 
+    public DbSet<CreditModel> Credit { get; set; }
+    public DbSet<PaymentsModel> Payment { get; set; }
 
 
 
@@ -100,6 +103,9 @@ public class ApplicationDbContext : IdentityDbContext<CustomUser>
         // RawMaterialPurchaseModel
 
         builder.Entity<RawMaterialPurchaseModel>()
+.Property(r => r.Employees_id)
+.HasColumnType("int");
+        builder.Entity<RawMaterialPurchaseModel>()
          .Property(r => r.Raw_Material_id)
          .HasColumnType("int");
         builder.Entity<RawMaterialPurchaseModel>()
@@ -118,15 +124,23 @@ public class ApplicationDbContext : IdentityDbContext<CustomUser>
             .WithMany(u => u.Raw_Materials_Purchase)
             .HasForeignKey(r => r.Raw_Material_id)
             .OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<RawMaterialPurchaseModel>()
+  .HasOne(r => r.Employees)
+  .WithMany(u => u.Raw_Materials_Purchase)
+  .HasForeignKey(r => r.Employees_id)
+  .OnDelete(DeleteBehavior.Restrict);
         // Budget
 
-           builder.Entity<BudgetModel>()
+        builder.Entity<BudgetModel>()
            .Property(r => r.Amount)
            .HasColumnType("decimal(10,2)");
         builder.Entity<BudgetModel>().ToTable("Budget");
 
         //ProductManufacturingModel 
 
+        builder.Entity<ProductManufacturingModel>()
+.Property(r => r.Employees_id)
+.HasColumnType("int");
         builder.Entity<ProductManufacturingModel>()
 .Property(r => r.Product_id)
 .HasColumnType("int");
@@ -146,10 +160,14 @@ public class ApplicationDbContext : IdentityDbContext<CustomUser>
          .HasForeignKey(r => r.Product_id)
          .OnDelete(DeleteBehavior.Restrict);
 
+        builder.Entity<ProductManufacturingModel>()
+  .HasOne(r => r.Employees)
+  .WithMany(u => u.Product_Manufacturing)
+  .HasForeignKey(r => r.Employees_id)
+  .OnDelete(DeleteBehavior.Restrict);
 
-       
 
-        
+
 
         //ProductSalesModel
 
@@ -213,7 +231,116 @@ public class ApplicationDbContext : IdentityDbContext<CustomUser>
          .HasForeignKey(r => r.Position_id)
          .OnDelete(DeleteBehavior.Restrict);
 
-    
+
+        //SalaryModel
+  
+        builder.Entity<SalaryModel>()
+.Property(r => r.Employees_id)
+.HasColumnType("int");
+        builder.Entity<SalaryModel>()
+           .Property(r => r.Year)
+           .HasColumnType("int");
+        builder.Entity<SalaryModel>()
+        .Property(r => r.Month)
+        .HasColumnType("int");
+        builder.Entity<SalaryModel>()
+      .Property(r => r.NumberOfPurchases)
+      .HasColumnType("int");
+        builder.Entity<SalaryModel>()
+      .Property(r => r.NumberOfProductions)
+      .HasColumnType("int");
+        builder.Entity<SalaryModel>()
+      .Property(r => r.NumberOfSales)
+      .HasColumnType("int");
+        builder.Entity<SalaryModel>()
+.Property(r => r.Common)
+.HasColumnType("int");
+
+        builder.Entity<SalaryModel>()
+         .Property(r => r.SalaryAmount)
+         .HasColumnType("decimal(18,2)");
+        builder.Entity<SalaryModel>()
+       .Property(r => r.Bonus)
+       .HasColumnType("decimal(18,2)");
+        builder.Entity<SalaryModel>()
+       .Property(r => r.General)
+       .HasColumnType("decimal(18,2)");
+        builder.Entity<SalaryModel>()
+        .Property(r => r.Issued)
+        .HasColumnType("bit");
+
+        builder.Entity<SalaryModel>().ToTable("Salary");
+
+      
+        builder.Entity<SalaryModel>()
+    .HasOne(r => r.Employees)
+    .WithMany(u => u.Salaries)
+    .HasForeignKey(r => r.Employees_id)
+    .OnDelete(DeleteBehavior.Restrict);
+        //Payment
+
+        builder.Entity<PaymentsModel>()
+.Property(r => r.Credit_id)
+.HasColumnType("int");
+        builder.Entity<PaymentsModel>()
+           .Property(r => r.PaymentDate)
+           .HasColumnType("datetime");
+        builder.Entity<PaymentsModel>()
+        .Property(r => r.PaymentAmount)
+        .HasColumnType("decimal(18,2)");
+        builder.Entity<PaymentsModel>()
+     .Property(r => r.Interest)
+     .HasColumnType("decimal(18,2)");
+        builder.Entity<PaymentsModel>()
+     .Property(r => r.TotalAmount)
+     .HasColumnType("decimal(18,2)");
+        builder.Entity<PaymentsModel>()
+     .Property(r => r.RemainingAmount)
+     .HasColumnType("decimal(18,2)");
+
+
+        builder.Entity<PaymentsModel>()
+   .Property(r => r.OverdueDays)
+   .HasColumnType("int");
+        builder.Entity<PaymentsModel>()
+  .Property(r => r.Penalty)
+  .HasColumnType("decimal(18,2)");
+        builder.Entity<PaymentsModel>().ToTable("Payments");
+
+        builder.Entity<PaymentsModel>()
+         .HasOne(r => r.Credit)
+         .WithMany(u => u.Payment)
+         .HasForeignKey(r => r.Credit_id)
+         .OnDelete(DeleteBehavior.Restrict);
+
+
+        //Credit
+
+
+
+        builder.Entity<CreditModel>()
+           .Property(r => r.StartDate)
+           .HasColumnType("datetime");
+        builder.Entity<CreditModel>()
+        .Property(r => r.Amount)
+        .HasColumnType("decimal(18,2)");
+        builder.Entity<CreditModel>()
+     .Property(r => r.Years)
+     .HasColumnType("int");
+        builder.Entity<CreditModel>()
+     .Property(r => r.AnnualInterestRate)
+     .HasColumnType("decimal(18,2)");
+
+        builder.Entity<CreditModel>()
+  .Property(r => r.Penalties)
+  .HasColumnType("decimal(18,2)");
+
+
+        builder.Entity<CreditModel>().ToTable("Credit");
+
+
+
+
 
         base.OnModelCreating(builder);
         builder.Entity<RawMaterialModel>().ToTable("Raw_Materials");
@@ -223,6 +350,9 @@ public class ApplicationDbContext : IdentityDbContext<CustomUser>
         builder.Entity<BudgetModel>().ToTable("Budget");
         builder.Entity<ProductManufacturingModel>().ToTable("Product_Manufacturing");
         builder.Entity<ProductSalesModel>().ToTable("Product_Sales");
+        builder.Entity<Employer>().ToTable("Employees");
+        builder.Entity<SalaryModel>().ToTable("Salary");
+
 
 
 

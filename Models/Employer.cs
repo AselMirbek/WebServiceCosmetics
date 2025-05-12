@@ -28,6 +28,9 @@ namespace WebServiceCosmetics.Models
         public string Address { get; set; }
         public string Phone { get; set; }
         public ICollection<ProductSalesModel> Product_Sales { get; set; } = new List<ProductSalesModel>();
+        public ICollection<SalaryModel> Salaries { get; set; } = new List<SalaryModel>();
+        public ICollection<ProductManufacturingModel> Product_Manufacturing { get; set; } = new List<ProductManufacturingModel>();
+        public ICollection<RawMaterialPurchaseModel> Raw_Materials_Purchase { get; set; } = new List<RawMaterialPurchaseModel>();
 
     }
 }

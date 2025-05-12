@@ -1,0 +1,148 @@
+﻿@model CreditDetailsViewModel
+
+<h2>Детали кредита №@Model.Credit.id</h2>
+
+<p><strong>Сумма кредита:</strong> @Model.Credit.Amount.ToString("N2")</p>
+<p><strong>Дата начала:</strong> @Model.Credit.StartDate.ToString("dd.MM.yyyy")</p>
+<p><strong>Процентная ставка:</strong> @Model.Credit.AnnualInterestRate.ToString("N2") %</p>
+<p><strong>Штрафы:</strong> @Model.Credit.Penalties?.ToString("N2")</p>
+
+@{
+    decimal totalPrincipal = 0;
+    decimal totalInterest = 0;
+    decimal totalAmount = 0;
+    decimal totalPenalty = 0;
+    decimal totalFinal = 0;
+    int totalOverdue = 0;
+
+    foreach (var p in Model.Payment)
+    {
+        totalPrincipal += p.PaymentAmount;
+        totalInterest += p.Interest;
+        totalAmount += p.TotalAmount;
+        totalPenalty += p.Penalty??0;
+        totalFinal += p.FinalAmount;
+        totalOverdue += p.OverdueDays??0;
+    }
+
+    decimal averageMonthlyPayment = Model.Payment.Count > 0
+        ? totalFinal / Model.Payment.Count
+        : 0;
+}
+<style>
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        font-family: Arial, sans-serif;
+    }
+
+    th, td {
+        border: 1px solid #ddd;
+        padding: 10px;
+        text-align: center;
+        font-size: 14px;
+    }
+
+    th {
+        background-color: #f4f4f4;
+        color: #333;
+        font-weight: bold;
+    }
+
+    tr:nth-child(even) {
+        background-color: #f9f9f9;
+    }
+
+    tr:hover {
+        background-color: #f1f1f1;
+    }
+
+    .bold {
+        font-weight: bold;
+    }
+
+    .highlight {
+        color: #007BFF;
+        font-weight: bold;
+    }
+
+    .total-row td {
+        background-color: #f0f0f0;
+        font-weight: bold;
+    }
+
+    button {
+        background-color: #4CAF50;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        cursor: pointer;
+        font-size: 14px;
+        border-radius: 4px;
+    }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+</style>
+<table>
+    <thead>
+        <tr>
+            <th>№</th>
+            <th>Дата платежа</th>
+            <th>Часть кредита</th>
+            <th>Проценты</th>
+            <th>Общая сумма</th>
+            <th>Остаток кредита</th>
+            <th>Просрочено</th>
+            <th>Пени</th>
+            <th>Оплачен</th>
+            <th>Итоговая сумма</th>
+        </tr>
+    </thead>
+    <tbody>
+        @for (int i = 0; i < Model.Payment.Count; i++)
+        {
+            var payment = Model.Payment[i];
+            <tr>
+                <td>@(i + 1)</td>
+                <td>@payment.PaymentDate.ToString("dd.MM.yyyy")</td>
+                <td>@payment.PaymentAmount.ToString("N2")</td>
+                <td>@payment.Interest.ToString("N2")</td>
+                <td>@payment.TotalAmount.ToString("N2")</td>
+                <td>@payment.RemainingAmount.ToString("N2")</td>
+                <td>@payment.OverdueDays</td>
+                <td>@payment.Penalty?.ToString("N2")</td>
+                <td>@(payment.IsPaid ? "Да" : "Нет")</td>
+                <td>@payment.FinalAmount.ToString("N2")</td>
+                <td>
+                    @if (!payment.IsPaid)
+                    {
+                        <form method="post" action="@Url.Action("Pay", new { paymentId = payment.id })">
+                            <button type="submit">Оплатить</button>
+                        </form>
+                    }
+                    else
+                    {
+                        <span>Оплачено</span>
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+        <!-- Итоговая строка -->
+        <tr class="total-row">
+            <td colspan="2">ИТОГО</td>
+            <td>@totalPrincipal.ToString("N2")</td>
+            <td>@totalInterest.ToString("N2")</td>
+            <td>@totalAmount.ToString("N2")</td>
+            <td>0,00</td>
+            <td>@totalOverdue</td>
+            <td>@totalPenalty.ToString("N2")</td>
+            <td></td>
+            <td>@totalFinal.ToString("N2")</td>
+        </tr>

@@ -22,15 +22,19 @@ namespace WebServiceCosmetics.Controllers
         {
             var purchases = await _context.Raw_Materials_Purchase
                 .Include(r => r.RawMaterialModel)
+                    .Include(r => r.Employees)
                 .ToListAsync();
             return View(purchases);
         }
+  
         [HttpGet]
 
         // GET: RawMaterialPurchase/Create
         public IActionResult Create()
         {
             ViewBag.RawMaterials = _context.Raw_Materials.ToList();
+            ViewBag.Employees = _context.Employees.ToList(); 
+
             return View();
         }
         [HttpPost]
@@ -40,6 +44,8 @@ namespace WebServiceCosmetics.Controllers
             if (!ModelState.IsValid)
             {
                 ViewBag.RawMaterials = _context.Raw_Materials.ToList();
+                ViewBag.Employees = _context.Employees.ToList();
+
                 return View(purchase);
             }
 
@@ -49,6 +55,8 @@ namespace WebServiceCosmetics.Controllers
             {
                 TempData["ErrorMessage"] = "Недостаточно средств в бюджете для закупки!";
                 ViewBag.RawMaterials = _context.Raw_Materials.ToList();
+                ViewBag.Employees = _context.Employees.ToList();
+
                 return View(purchase); // НЕ СОХРАНЯЕМ, если бюджета недостаточно
             }
 

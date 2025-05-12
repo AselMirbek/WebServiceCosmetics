@@ -24,6 +24,11 @@ namespace WebServiceCosmetics.Models
         public decimal Quantity { get; set; }
         public decimal Amount { get; set; }
         public DateTime Date { get; set; } = DateTime.Now;
+        public int? Employees_id { get; set; }
+        [ForeignKey("Employees_id")]
+        [ValidateNever]
+
+        public Employer Employees { get; set; }
 
 
 

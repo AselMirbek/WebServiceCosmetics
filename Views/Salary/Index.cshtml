@@ -1,0 +1,216 @@
+﻿@using System.Globalization
+@model List<WebServiceCosmetics.Models.SalaryModel>
+
+@{
+    ViewData["Title"] = "Управление зарплатами";
+    var selectedYear = ViewBag.SelectedYear ?? DateTime.Now.Year;
+    var selectedMonth = ViewBag.SelectedMonth ?? DateTime.Now.Month;
+    var totalAmount = Model.Where(s => !s.Issued).Sum(s => s.General ?? 0);
+}
+
+@if (ViewBag.ErrorMessage != null)
+{
+    <div class="alert alert-danger">
+        @ViewBag.ErrorMessage
+    </div>
+}
+
+<div class="container mt-4">
+    <h2 class="mb-4">@ViewData["Title"]</h2>
+
+    <!-- Форма выбора периода (без изменений) -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3">
+                    <label class="form-label">Год</label>
+                    <select id="yearSelect" class="form-select">
+                        @for (int y = DateTime.Now.Year; y >= DateTime.Now.Year - 5; y--)
+                        {
+                            <option value="@y" selected="@(y == selectedYear)">@y</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Месяц</label>
+                    <select id="monthSelect" class="form-select">
+                        @for (int m = 1; m <= 12; m++)
+                        {
+                            <option value="@m" selected="@(m == selectedMonth)">@m</option>
+                        }
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Таблица зарплат с уменьшенным размером -->
+    <div class="card">
+        <div class="card-body">
+            @if (Model.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover" style="font-size: 0.9em">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Сотрудник</th>
+                                <th class="text-end">Покупки</th>
+                                <th class="text-end">Производство</th>
+                                <th class="text-end">Продажи</th>
+                                <th class="text-end">Всего операций</th>
+                                <th class="text-end">Оклад</th>
+                                <th class="text-end">Бонус</th>
+                                <th class="text-end">Итого</th>
+                                <th>Статус</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var salary in Model)
+                            {
+                                <tr>
+                                    <td>@salary.Employees?.Full_Name</td>
+                                    <td class="text-end">@(salary.NumberOfPurchases?.ToString("N0") ?? "-")</td>
+                                    <td class="text-end">@(salary.NumberOfProductions?.ToString("N0") ?? "-")</td>
+                                    <td class="text-end">@(salary.NumberOfSales?.ToString("N0") ?? "-")</td>
+                                    <td class="text-end">@(salary.Common?.ToString("N0") ?? "-")</td>
+                                    <td class="text-end">@salary.SalaryAmount.ToString("N2")</td>
+                                    <td class="text-end">@(salary.Bonus?.ToString("N2") ?? "-")</td>
+                                    <td class="text-end">
+                                        @if (!salary.Issued)
+                                        {
+                                            <input type="number" class="form-control text-end salary-input"
+                                       value="@salary.General?.ToString("0.00")"
+                                       data-salary-id="@salary.ID"
+                                       style="width: 100px;"
+                                       min="0" step="0.01" />
+                                        }
+                                        else
+                                        {
+                                            @salary.General?.ToString("N2")
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (salary.Issued)
+                                        {
+                                            <span class="badge bg-success">Выдана</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-warning text-dark">Не выдана</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                @if (!Model.Any(s => s.Issued))
+                {
+                    <div class="mt-3 text-end">
+                        <div class="d-flex align-items-center justify-content-end">
+                            <div class="me-3">
+                                <strong>Итого к выплате: </strong>
+                                <span id="totalAmountDisplay" class="fs-5 text-primary">@totalAmount.ToString("N2") сом</span>
+                            </div>
+                            <button id="paySalariesBtn" class="btn btn-primary">
+                                <i class="fas fa-money-bill-wave me-2"></i>Выдать зарплаты
+                            </button>
+                        </div>
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>Выберите год и месяц для расчета зарплат
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function () {
+            // Функция для обновления итоговой суммы
+            function updateTotalAmount() {
+                let total = 0;
+                $('.salary-input').each(function () {
+                    const value = parseFloat($(this).val()) || 0;
+                    total += value;
+                });
+                $('#totalAmountDisplay').text(total.toFixed(2) + ' сом');
+            }
+
+            // Инициализация при загрузке
+            updateTotalAmount();
+
+               $('#yearSelect, #monthSelect').change(function () {
+            const year = $('#yearSelect').val();
+            const month = $('#monthSelect').val();
+            window.location.href = `/Salary/Index?year=${year}&month=${month}`;
+        });
+
+
+            // Обновление суммы при изменении полей
+            $(document).on('change', '.salary-input', function () {
+                const salaryId = $(this).data('salary-id');
+                const newAmount = parseFloat($(this).val()) || 0;
+
+                if (isNaN(newAmount) || newAmount < 0) {
+                    alert('Введите корректную сумму');
+                    return;
+                }
+
+                // Обновляем сумму перед отправкой
+                updateTotalAmount();
+
+                $.post('/Salary/UpdateSalary', {
+                    id: salaryId,
+                    generalAmount: newAmount
+                }).fail(function () {
+                    alert('Ошибка соединения');
+                });
+            });
+
+            $('#paySalariesBtn').click(function () {
+                if (!confirm('Вы уверены, что хотите выдать зарплаты за выбранный период?')) {
+                    return;
+                }
+
+                const year = $('#yearSelect').val();
+                const month = $('#monthSelect').val();
+
+                $.post('/Salary/PaySalaries', {
+                    year: year,
+                    month: month
+                }, function (response) {
+                    if (response.success) {
+                        alert(`${response.message}`);
+                        window.location.reload();
+                    } else {
+                        alert('Ошибка: ' + response.message);
+                    }
+                }).fail(function () {
+                    alert('Ошибка соединения с сервером');
+                });
+            });
+        });
+    </script>
+
+    <style>
+        /* Минимальные изменения для уменьшения размера */
+        .table {
+            font-size: 0.9em;
+        }
+
+            .table th, .table td {
+                padding: 0.5rem;
+            }
+
+        .salary-input {
+            width: 100px;
+        }
+    </style>
+} 

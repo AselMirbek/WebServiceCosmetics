@@ -1,0 +1,92 @@
+﻿@using System.Globalization
+@model IEnumerable<WebServiceCosmetics.Models.SalaryModel>
+
+@functions {
+    string FormatMoney(decimal? value)
+    {
+        return value?.ToString("N2", CultureInfo.InvariantCulture) ?? "0.00";
+    }
+}
+
+@if (Model.Any())
+{
+    <div class="card mb-3">
+        <div class="card-header bg-info text-white">
+            <h5 class="mb-0">Итого к выплате: Sum(s => s.General)</h5>
+        </div>
+        <div class="card-body">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Сотрудник</th>
+                        <th>Оклад</th>
+                        <th>Закупки</th>
+                        <th>Производство</th>
+                        <th>Продажи</th>
+                        <th>Операции</th>
+                        <th>Бонус</th>
+                        <th>Итого</th>
+                        <th>Статус</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        <tr>
+                            <td>@Html.DisplayFor(m => item.Employees.Full_Name)</td>
+                            <td>@item.SalaryAmount</td>
+                            <td>@item.NumberOfPurchases</td>
+                            <td>@item.NumberOfProductions</td>
+                            <td>@item.NumberOfSales</td>
+                            <td>@item.Common</td>
+                            <td>@item.Bonus</td>
+                            <td>
+                                @if (!item.Issued)
+                                {
+                                    <input type="number"
+                                           class="form-control general-input"
+                                           value="@item.General"
+                                           data-id="@item.ID"
+                                           min="@item.SalaryAmount"
+                                           max="@(item.SalaryAmount * 3)"
+                                           step="0.01"
+                                           style="width: 100px;" />
+                                }
+                                else
+                                {
+                                    @item.General
+                                }
+                            </td>
+                            <td>
+                                @if (item.Issued)
+                                {
+                                    <span class="badge bg-success">Выдано</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-warning">Не выдано</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    @if (Model.Any(s => !s.Issued))
+    {
+        <form asp-action="Pay" method="post">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="year" value="@ViewBag.Year.SelectedValue" />
+            <input type="hidden" name="month" value="@ViewBag.Month.SelectedValue" />
+            <button type="submit" class="btn btn-success">
+                <i class="fas fa-money-bill-wave"></i> Выдать зарплату
+            </button>
+        </form>
+    }
+}
+else if (ViewBag.Year != null)
+{
+    <div class="alert alert-info">Нет данных для отображения</div>
+}

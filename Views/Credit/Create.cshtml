@@ -1,0 +1,50 @@
+﻿@model WebServiceCosmetics.Models.CreditModel
+
+@{
+    ViewData["Title"] = "Create Credit";
+}
+
+<h1>@ViewData["Title"]</h1>
+
+@if (TempData["Message"] != null)
+{
+    <div class="alert alert-success">
+        @TempData["Message"]
+    </div>
+}
+
+<form asp-action="Create" method="post">
+    <div class="form-group">
+        <label asp-for="Amount" class="control-label"></label>
+        <input asp-for="Amount" class="form-control" />
+        <span asp-validation-for="Amount" class="text-danger"></span>
+    </div>
+
+    <div class="form-group">
+        <label asp-for="StartDate" class="control-label"></label>
+        <input asp-for="StartDate" class="form-control" type="date" />
+        <span asp-validation-for="StartDate" class="text-danger"></span>
+    </div>
+
+    <div class="form-group">
+        <label asp-for="Years" class="control-label"></label>
+        <input asp-for="Years" class="form-control" />
+        <span asp-validation-for="Years" class="text-danger"></span>
+    </div>
+
+    <div class="form-group">
+        <label asp-for="AnnualInterestRate" class="control-label"></label>
+        <input asp-for="AnnualInterestRate" class="form-control" />
+        <span asp-validation-for="AnnualInterestRate" class="text-danger"></span>
+    </div>
+
+    <div class="form-group">
+        <label asp-for="Penalties" class="control-label"></label>
+        <input asp-for="Penalties" class="form-control" />
+        <span asp-validation-for="Penalties" class="text-danger"></span>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Create Credit</button>
+</form>
+
+<a href="@Url.Action("Index", "Credit")" class="btn btn-secondary">Back to List</a>

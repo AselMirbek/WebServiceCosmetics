@@ -1,0 +1,51 @@
+﻿@model IEnumerable<WebServiceCosmetics.Models.CreditModel>
+
+@{
+    ViewData["Title"] = "Credits List";
+}
+
+<h1>@ViewData["Title"]</h1>
+
+@if (TempData["Message"] != null)
+{
+    <div class="alert alert-success">
+        @TempData["Message"]
+    </div>
+}
+
+<p>
+    <a href="@Url.Action("Create", "Credit")" class="btn btn-primary">Create New Credit</a>
+</p>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Credit ID</th>
+            <th>Amount</th>
+            <th>Start Date</th>
+            <th>Years</th>
+            <th>Interest Rate (%)</th>
+             <th>Remaining Amount</th>
+            <th>Penalties</th
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var credit in Model)
+        {
+            <tr>
+                <td>@credit.id</td>
+                <td>@credit.Amount</td>
+                <td>@credit.StartDate.ToString("dd/MM/yyyy")</td>
+                <td>@credit.Years</td>
+                <td>@credit.AnnualInterestRate</td>
+                 <td>@credit.RemainingAmount?.ToString("N2")</td>
+                <td>@credit.Penalties?.ToString("N2")</td>
+                <td>
+                    <!-- Можно добавить другие действия, такие как редактирование или удаление -->
+                    <a href="@Url.Action("Details", "Credit", new { id = credit.id })" class="btn btn-info">Details</a>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
