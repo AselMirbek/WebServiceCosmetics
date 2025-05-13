@@ -8,6 +8,25 @@ using System.Linq;
 using System.Threading.Tasks;
 using WebServiceCosmetics.Data;
 using WebServiceCosmetics.Models;
+using DinkToPdf;
+using DinkToPdf.Contracts;
+using System.IO;
+using ClosedXML.Excel;
+
+using PdfSharpCore.Pdf;
+using PdfSharpCore.Drawing;
+using System.Collections.Generic;
+
+
+using DocumentFormat.OpenXml.Packaging;
+using DocumentFormat.OpenXml.Wordprocessing;
+using DocumentFormat.OpenXml.Spreadsheet;
+
+using System.IO;
+using Paragraph = DocumentFormat.OpenXml.Wordprocessing.Paragraph;
+using Run = DocumentFormat.OpenXml.Wordprocessing.Run;
+using Text = DocumentFormat.OpenXml.Wordprocessing.Text;
+using DocumentFormat.OpenXml.Spreadsheet;
 
 namespace WebServiceCosmetics.Controllers
 {
@@ -295,6 +314,162 @@ namespace WebServiceCosmetics.Controllers
         private bool ProductManufacturingModelExists(int id)
         {
             return _context.Product_Manufacturing.Any(e => e.Id == id);
+        }
+        public IActionResult ExportToWord()
+        {
+            var productions = _context.Product_Manufacturing
+                .Include(p => p.ProductModel)
+                .Include(p => p.Employees)
+                .ToList();
+
+            using (var ms = new MemoryStream())
+            {
+                using (var wordDoc = WordprocessingDocument.Create(ms, DocumentFormat.OpenXml.WordprocessingDocumentType.Document, true))
+                {
+                    var mainPart = wordDoc.AddMainDocumentPart();
+                    mainPart.Document = new Document();
+                    var body = mainPart.Document.AppendChild(new Body());
+
+                    // Заголовок
+                    var heading = new Paragraph(new Run(new Text("Отчет о производстве продуктов")));
+                    heading.ParagraphProperties = new ParagraphProperties(new Justification() { Val = JustificationValues.Center });
+                    body.AppendChild(heading);
+
+                    // Таблица
+                    var table = new DocumentFormat.OpenXml.Drawing.Table();
+
+                    // Заголовок таблицы
+                    var headerRow = new TableRow();
+                    headerRow.Append(
+                        new TableCell(new Paragraph(new Run(new Text("Продукт")))),
+                        new TableCell(new Paragraph(new Run(new Text("Сотрудник")))),
+                        new TableCell(new Paragraph(new Run(new Text("Количество")))),
+                        new TableCell(new Paragraph(new Run(new Text("Дата"))))
+                    );
+                    table.AppendChild(headerRow);
+
+                    // Данные
+                    foreach (var item in productions)
+                    {
+                        var row = new TableRow();
+                        row.Append(
+                            new TableCell(new Paragraph(new Run(new Text(item.ProductModel?.Name ?? "")))),
+                            new TableCell(new Paragraph(new Run(new Text(item.Employees?.Full_Name ?? "")))),
+                            new TableCell(new Paragraph(new Run(new Text(item.Quantity.ToString())))),
+                            new TableCell(new Paragraph(new Run(new Text(item.Date.ToShortDateString()))))
+                        );
+                        table.AppendChild(row);
+                    }
+
+                    body.AppendChild(table);
+                }
+
+                return File(ms.ToArray(), "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "ProductManufacturingReport.docx");
+            }
+        }
+        public IActionResult ExportToExcel()
+        {
+            var productions = _context.Product_Manufacturing
+                .Include(p => p.ProductModel)
+                .Include(p => p.Employees)
+                .ToList();
+
+            using (var ms = new MemoryStream())
+            {
+                using (var spreadsheetDoc = SpreadsheetDocument.Create(ms, DocumentFormat.OpenXml.SpreadsheetDocumentType.Workbook))
+                {
+                    var workbookPart = spreadsheetDoc.AddWorkbookPart();
+                    workbookPart.Workbook = new Workbook();
+
+                    var worksheetPart = workbookPart.AddNewPart<WorksheetPart>();
+                    var sheetData = new SheetData();
+                    worksheetPart.Worksheet = new Worksheet(sheetData);
+
+                    var sheets = spreadsheetDoc.WorkbookPart.Workbook.AppendChild(new Sheets());
+                    var sheet = new Sheet()
+                    {
+                        Id = spreadsheetDoc.WorkbookPart.GetIdOfPart(worksheetPart),
+                        SheetId = 1,
+                        Name = "Отчет"
+                    };
+                    sheets.Append(sheet);
+
+                    // Заголовок
+                    var headerRow = new Row();
+                    headerRow.Append(
+                        new Cell() { CellValue = new CellValue("Продукт"), DataType = CellValues.String },
+                        new Cell() { CellValue = new CellValue("Сотрудник"), DataType = CellValues.String },
+                        new Cell() { CellValue = new CellValue("Количество"), DataType = CellValues.String },
+                        new Cell() { CellValue = new CellValue("Дата"), DataType = CellValues.String }
+                    );
+                    sheetData.AppendChild(headerRow);
+
+                    // Данные
+                    foreach (var item in productions)
+                    {
+                        var row = new Row();
+                        row.Append(
+                            new Cell() { CellValue = new CellValue(item.ProductModel?.Name ?? ""), DataType = CellValues.String },
+                            new Cell() { CellValue = new CellValue(item.Employees?.Full_Name ?? ""), DataType = CellValues.String },
+                            new Cell() { CellValue = new CellValue(item.Quantity.ToString()), DataType = CellValues.Number },
+                            new Cell() { CellValue = new CellValue(item.Date.ToShortDateString()), DataType = CellValues.String }
+                        );
+                        sheetData.AppendChild(row);
+                    }
+                }
+
+                return File(ms.ToArray(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "ProductManufacturingReport.xlsx");
+            }
+        }
+        public IActionResult ExportToPdf()
+        {
+            var productions = _context.Product_Manufacturing
+                .Include(p => p.ProductModel)
+                .Include(p => p.Employees)
+                .ToList();
+
+            using (var ms = new MemoryStream())
+            {
+                var document = new PdfDocument();
+                var page = document.AddPage();
+                var gfx = XGraphics.FromPdfPage(page);
+                var font = new XFont("Verdana", 12, XFontStyle.Regular);
+
+                double yPoint = 40;
+
+                // Заголовок
+                gfx.DrawString("Отчет о производстве продуктов", new XFont("Verdana", 14, XFontStyle.Bold), XBrushes.Black,
+                    new XRect(0, yPoint, page.Width, page.Height), XStringFormats.TopCenter);
+                yPoint += 40;
+
+                // Таблица заголовков
+                gfx.DrawString("Продукт", font, XBrushes.Black, new XRect(40, yPoint, 100, page.Height), XStringFormats.TopLeft);
+                gfx.DrawString("Сотрудник", font, XBrushes.Black, new XRect(150, yPoint, 100, page.Height), XStringFormats.TopLeft);
+                gfx.DrawString("Количество", font, XBrushes.Black, new XRect(260, yPoint, 100, page.Height), XStringFormats.TopLeft);
+                gfx.DrawString("Дата", font, XBrushes.Black, new XRect(370, yPoint, 100, page.Height), XStringFormats.TopLeft);
+                yPoint += 25;
+
+                // Данные
+                foreach (var item in productions)
+                {
+                    gfx.DrawString(item.ProductModel?.Name ?? "", font, XBrushes.Black, new XRect(40, yPoint, 100, page.Height), XStringFormats.TopLeft);
+                    gfx.DrawString(item.Employees?.Full_Name ?? "", font, XBrushes.Black, new XRect(150, yPoint, 100, page.Height), XStringFormats.TopLeft);
+                    gfx.DrawString(item.Quantity.ToString(), font, XBrushes.Black, new XRect(260, yPoint, 100, page.Height), XStringFormats.TopLeft);
+                    gfx.DrawString(item.Date.ToShortDateString(), font, XBrushes.Black, new XRect(370, yPoint, 100, page.Height), XStringFormats.TopLeft);
+                    yPoint += 20;
+
+                    // Добавление новой страницы при необходимости
+                    if (yPoint > page.Height - 40)
+                    {
+                        page = document.AddPage();
+                        gfx = XGraphics.FromPdfPage(page);
+                        yPoint = 40;
+                    }
+                }
+
+                document.Save(ms);
+                return File(ms.ToArray(), "application/pdf", "ProductManufacturingReport.pdf");
+            }
         }
     }
 }

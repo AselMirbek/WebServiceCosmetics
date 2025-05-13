@@ -36,10 +36,21 @@ namespace WebServiceCosmetics.Controllers
             return View(products);
         }
 
+        private bool IsDirector()
+        {
+            var role = HttpContext.Session.GetString("UserRole");
+            return role == "Director";
+        }
 
         // GET: Product/Create
         public IActionResult Create()
         {
+            if (IsDirector())
+                return RedirectToAction("AccessDenied", "Home");
+
+
+
+
             ViewBag.Units = new SelectList(_context.Units, "Id", "Name");
             return View(new ProductModel());
         }
@@ -50,6 +61,14 @@ namespace WebServiceCosmetics.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(ProductModel product)
         {
+            if (IsDirector())
+                return RedirectToAction("AccessDenied", "Home");
+
+
+
+
+
+
             _logger.LogInformation("Валидация ModelState началась.");
 
             // Проверка обязательности Unit_id

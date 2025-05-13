@@ -1,0 +1,33 @@
+﻿//ROLEPANELVIEW
+@{
+    ViewData["Title"] = "Ролевая панель";
+    var role = ViewBag.Role as string;
+}
+
+<h2>Вы вошли как: @role</h2>
+
+@if (role == "Admin")
+{
+    <p>У вас полный доступ ко всем разделам.</p>
+    <a href="@Url.Action("AdminView", "Home")">Админ</a>
+}
+else if (role == "Director")
+{
+    <p>Вы можете просматривать данные и выдавать зарплату.</p>
+    <a href="@Url.Action("DirectorView", "Home")">Перейти</a>
+}
+else if (role == "Manager")
+{
+    <p>Вы можете закупать сырьё и продавать товары.</p>
+    <a href="@Url.Action("ManagerView", "Home")">Перейти</a>
+}
+else if (role == "Accountant")
+{
+    <p>Вы работаете с банком.</p>
+    <a href="@Url.Action("AccountantView", "Home")">Перейти</a>
+}
+else if (role == "Technologist")
+{
+    <p>Вы управляете производственными процессами.</p>
+    <a href="@Url.Action("TechnologistView", "Home")">Перейти</a>
+}

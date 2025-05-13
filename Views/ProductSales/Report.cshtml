@@ -1,0 +1,33 @@
+﻿@{
+    ViewData["Title"] = "Product Sales Report";
+}
+
+<h1>Отчёт по продажам</h1>
+
+<!-- Кнопки для экспорта -->
+<a href="@Url.Action("ExportToExcel", "ProductSales")" class="btn btn-success">Экспортировать в Excel</a>
+<a href="@Url.Action("ExportToPdf", "ProductSales")" class="btn btn-danger">Экспортировать в PDF</a>
+<a href="@Url.Action("ExportToWord", "ProductSales")" class="btn btn-success">Экспортировать в Word</a>
+<table class="table">
+    <thead>
+        <tr>
+            <th>Продукт</th>
+            <th>Сотрудник</th>
+            <th>Количество</th>
+            <th>Сумма</th>
+            <th>Дата</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var sale in Model)
+        {
+            <tr>
+                <td>@sale.ProductModel.Name</td>
+                <td>@sale.Employees.Full_Name</td>
+                <td>@sale.Quantity</td>
+                <td>@sale.Amount</td>
+                <td>@sale.Date.ToShortDateString()</td>
+            </tr>
+        }
+    </tbody>
+</table>

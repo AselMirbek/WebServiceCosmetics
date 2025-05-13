@@ -14,6 +14,14 @@ using Microsoft.EntityFrameworkCore;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using DocumentFormat.OpenXml.Packaging;
+using DocumentFormat.OpenXml.Wordprocessing;
+using DocumentFormat.OpenXml.Spreadsheet;
+using DocumentFormat.OpenXml;
+using System.IO;
+using Run = DocumentFormat.OpenXml.Spreadsheet.Run;
+using PdfSharpCore.Drawing;
+using PdfSharpCore.Pdf;
 
 namespace WebServiceCosmetics.Controllers
 {
@@ -55,7 +63,7 @@ namespace WebServiceCosmetics.Controllers
             };
             return View(viewModel);
         }
-
+     
 
         // GET: CreditController/Create
         public ActionResult Create()
@@ -88,7 +96,7 @@ namespace WebServiceCosmetics.Controllers
                     await _context.Database.ExecuteSqlRawAsync("EXEC CreateCreditWithSchedule @CreditId, @LoanAmount, @AnnualInterestRate, @LoanTermYears, @StartDate", parameters);
 
                     // Обновление бюджета
-                    await UpdateBudgetAmount("Credit", newCredit.Amount);
+                    await _context.Database.ExecuteSqlRawAsync("EXEC UpdateBudgetAmountCredit @TransactionType = {0}, @Amount = {1}", "Credit", newCredit.Amount);
 
                     TempData["Message"] = "Кредит успешно создан, и график платежей сгенерирован.";
                     return RedirectToAction(nameof(Index));
@@ -96,6 +104,8 @@ namespace WebServiceCosmetics.Controllers
                 catch (Exception ex)
                 {
                     TempData["Message"] = $"Ошибка: {ex.Message}";
+                    return RedirectToAction(nameof(Create));
+
                 }
             }
 
@@ -103,35 +113,8 @@ namespace WebServiceCosmetics.Controllers
         }
 
 
-      
-        // Метод для обновления бюджета (увеличение или уменьшение суммы)
-        private async Task UpdateBudgetAmount(string transactionType, decimal amount)
-        {
-            // Ищем текущую сумму в таблице Budget
-            var budget = await _context.Budget.FirstOrDefaultAsync();
-            if (budget == null)
-            {
-                throw new Exception("Budget not found!");
-            }
 
-            // В зависимости от типа транзакции увеличиваем или уменьшаем сумму
-            if (transactionType == "Credit")
-            {
-                budget.Amount += amount; // Увеличиваем сумму при получении кредита
-            }
-            else if (transactionType == "Payment")
-            {
-                budget.Amount -= amount; // Уменьшаем сумму при выплате кредита
-            }
-            else
-            {
-                throw new ArgumentException("Invalid transaction type");
-            }
 
-            // Сохраняем изменения в базе данных
-            _context.Budget.Update(budget);
-            await _context.SaveChangesAsync();
-        }
 
         // Метод поиска платежей по дате (для демонстрации поиска)
         public async Task<IActionResult> SearchPayments(DateTime startDate, DateTime endDate)
@@ -189,9 +172,17 @@ namespace WebServiceCosmetics.Controllers
                 if (credit != null)
                 {
                     credit.RemainingAmount -= payment.PaymentAmount; // Уменьшаем остаток кредита на сумму платежа
-                    await UpdateBudgetAmount("Payment", payment.PaymentAmount);
-                    // Обновляем бюджет (уменьшаем на сумму платежа)
-
+                    try
+                    {
+                        // Выполняем хранимую процедуру обновления бюджета
+                        await _context.Database.ExecuteSqlRawAsync("EXEC UpdateBudgetAmountCredit @TransactionType = {0}, @Amount = {1}", "Payment", payment.PaymentAmount);
+                    }
+                    catch (Exception ex)
+                    {
+                        // Если произошла ошибка (например, недостаточно средств в бюджете), выводим сообщение
+                        TempData["Message"] = $"Ошибка: {ex.Message}";
+                        return RedirectToAction("Details", new { id = payment.Credit_id });
+                    }
                 }
 
 
@@ -200,7 +191,161 @@ namespace WebServiceCosmetics.Controllers
 
             return RedirectToAction("Details", new { id = payment.Credit_id });
         }
+        [HttpGet("Credit/Details/ExportToWord/{id}")]
 
+        public IActionResult ExportToWord(int id)
+        {
+            var credit = _context.Credit
+                .Include(c => c.Payment)
+                .FirstOrDefault(c => c.id == id);
+
+            if (credit == null)
+            {
+                return NotFound();
+            }
+
+            using (MemoryStream memoryStream = new MemoryStream())
+            {
+                using (WordprocessingDocument wordDocument = WordprocessingDocument.Create(memoryStream, WordprocessingDocumentType.Document))
+                {
+                    var mainPart = wordDocument.AddMainDocumentPart();
+                    mainPart.Document = new DocumentFormat.OpenXml.Wordprocessing.Document(new Body());
+
+                    var body = mainPart.Document.Body;
+
+                    // Заголовок документа
+                    var title = new Paragraph(
+                        new DocumentFormat.OpenXml.Drawing.Run(
+                            new DocumentFormat.OpenXml.Math.Text($"Кредит № {credit.id}")));
+                    body.Append(title);
+
+                    // Информация о кредите
+                    var creditDetails = new Paragraph(
+                        new Run(
+                            new DocumentFormat.OpenXml.Math.Text($"Сумма кредита: {credit.Amount}")));
+
+                    body.Append(creditDetails);
+
+                    // Платежи по кредиту
+                    var paymentsParagraph = new Paragraph(
+                        new Run(
+                            new DocumentFormat.OpenXml.Math.Text("Платежи по кредиту:")));
+                    body.Append(paymentsParagraph);
+
+                    foreach (var payment in credit.Payment)
+                    {
+                        var paymentDetails = new Paragraph(
+                            new Run(
+                                new DocumentFormat.OpenXml.Math.Text($"Дата платежа: {payment.PaymentDate}, Сумма: {payment.PaymentAmount}")));
+                        body.Append(paymentDetails);
+                    }
+
+                    wordDocument.Save();
+                }
+
+                return File(memoryStream.ToArray(), "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "CreditDetails.docx");
+            }
+        }
+        [HttpGet("Credit/ExportToExcel/{id}")]
+
+        public IActionResult ExportToExcel(int id)
+        {
+            var credit = _context.Credit
+                .Include(c => c.Payment)
+                .FirstOrDefault(c => c.id == id);
+
+            if (credit == null)
+            {
+                return NotFound();
+            }
+
+            using (MemoryStream memoryStream = new MemoryStream())
+            {
+                using (SpreadsheetDocument spreadsheetDocument = SpreadsheetDocument.Create(memoryStream, SpreadsheetDocumentType.Workbook))
+                {
+                    WorkbookPart workbookPart = spreadsheetDocument.AddWorkbookPart();
+                    workbookPart.Workbook = new Workbook();
+                    WorksheetPart worksheetPart = workbookPart.AddNewPart<WorksheetPart>();
+                    worksheetPart.Worksheet = new Worksheet(new SheetData());
+
+                    Sheets sheets = spreadsheetDocument.WorkbookPart.Workbook.AppendChild(new Sheets());
+                    Sheet sheet = new Sheet() { Name = "Кредитные данные", SheetId = 1, Id = spreadsheetDocument.WorkbookPart.GetIdOfPart(worksheetPart) };
+                    sheets.Append(sheet);
+
+                    SheetData sheetData = worksheetPart.Worksheet.GetFirstChild<SheetData>();
+
+                    // Заголовки столбцов
+                    Row headerRow = new Row();
+                    headerRow.Append(
+                        new Cell() { CellValue = new CellValue("Кредит №"), DataType = CellValues.String },
+                        new Cell() { CellValue = new CellValue("Сумма кредита"), DataType = CellValues.String },
+                        new Cell() { CellValue = new CellValue("Дата платежа"), DataType = CellValues.String },
+                        new Cell() { CellValue = new CellValue("Сумма платежа"), DataType = CellValues.String }
+                    );
+                    sheetData.Append(headerRow);
+
+                    // Данные по кредиту
+                    foreach (var payment in credit.Payment)
+                    {
+                        Row row = new Row();
+                        row.Append(
+                            new Cell() { CellValue = new CellValue(credit.id.ToString()), DataType = CellValues.Number },
+                            new Cell() { CellValue = new CellValue(credit.Amount.ToString()), DataType = CellValues.Number },
+                            new Cell() { CellValue = new CellValue(payment.PaymentDate.ToString("yyyy-MM-dd")), DataType = CellValues.String },
+                            new Cell() { CellValue = new CellValue(payment.PaymentAmount.ToString()), DataType = CellValues.Number }
+                        );
+                        sheetData.Append(row);
+                    }
+
+                    spreadsheetDocument.Save();
+                }
+
+                return File(memoryStream.ToArray(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "CreditDetails.xlsx");
+            }
+
+        }
+        [HttpGet("Credit/ExportToPdf/{id}")]
+
+        public IActionResult ExportToPdf(int id)
+        {
+            var credit = _context.Credit
+                .Include(c => c.Payment)
+                .FirstOrDefault(c => c.id == id);
+
+            if (credit == null)
+            {
+                return NotFound();
+            }
+
+            using (MemoryStream memoryStream = new MemoryStream())
+            {
+                PdfDocument document = new PdfDocument();
+                PdfPage page = document.AddPage();
+                XGraphics gfx = XGraphics.FromPdfPage(page);
+
+                // Заголовок
+                XFont fontTitle = new XFont("Arial", 20, XFontStyle.Bold);
+                gfx.DrawString($"Кредит № {credit.id}", fontTitle, XBrushes.Black, new XPoint(40, 40));
+
+                // Информация о кредите
+                XFont fontContent = new XFont("Arial", 12);
+                gfx.DrawString($"Сумма кредита: {credit.Amount}", fontContent, XBrushes.Black, new XPoint(40, 80));
+
+                // Платежи по кредиту
+                gfx.DrawString("Платежи по кредиту:", fontContent, XBrushes.Black, new XPoint(40, 120));
+
+                int yPosition = 140;
+                foreach (var payment in credit.Payment)
+                {
+                    gfx.DrawString($"Дата: {payment.PaymentDate.ToString("yyyy-MM-dd")}, Сумма: {payment.PaymentAmount}", fontContent, XBrushes.Black, new XPoint(40, yPosition));
+                    yPosition += 20;
+                }
+
+                document.Save(memoryStream, false);
+                return File(memoryStream.ToArray(), "application/pdf", "CreditDetails.pdf");
+            }
+        }
+   
     }
 }
 

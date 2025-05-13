@@ -6,8 +6,12 @@
     var selectedYear = ViewBag.SelectedYear ?? DateTime.Now.Year;
     var selectedMonth = ViewBag.SelectedMonth ?? DateTime.Now.Month;
     var totalAmount = Model.Where(s => !s.Issued).Sum(s => s.General ?? 0);
-}
+    <a href="@Url.Action("ExportToPdf", "Salary")" class="btn btn-danger">Экспортировать в PDF</a>
+    <a href="@Url.Action("ExportToExcel", "Salary")" class="btn btn-success">Экспортировать в Excel</a>
+    <a href="@Url.Action("ExportToWord", "Salary")" class="btn btn-success">Экспортировать в Word</a>
 
+
+}
 @if (ViewBag.ErrorMessage != null)
 {
     <div class="alert alert-danger">

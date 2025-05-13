@@ -6,6 +6,20 @@
 <p><strong>Дата начала:</strong> @Model.Credit.StartDate.ToString("dd.MM.yyyy")</p>
 <p><strong>Процентная ставка:</strong> @Model.Credit.AnnualInterestRate.ToString("N2") %</p>
 <p><strong>Штрафы:</strong> @Model.Credit.Penalties?.ToString("N2")</p>
+<a href="@Url.Action("ExportToPdf", "Credit", new { id = Model.Credit.id })" class="btn btn-danger">Экспортировать в PDF</a>
+<a href="@Url.Action("ExportToExcel", "Credit", new { id = Model.Credit.id })" class="btn btn-success">Экспортировать в Excel</a>
+<a href="@Url.Action("ExportToWord", "Credit", new { id = Model.Credit.id })" class="btn btn-success">Экспортировать в Word</a>
+
+@{
+    var message = TempData["Message"] as string;
+}
+
+@if (!string.IsNullOrEmpty(message))
+{
+    <script type="text/javascript">
+        alert('@message');
+    </script>
+}
 
 @{
     decimal totalPrincipal = 0;

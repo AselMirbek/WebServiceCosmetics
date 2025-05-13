@@ -4,6 +4,10 @@
 }
 <h2>Закупки сырья</h2>
 <a asp-action="Create" class="btn btn-primary">Добавить</a>
+<a href="@Url.Action("ExportToPdf", "RawMaterialPurchase")" class="btn btn-danger">Экспортировать в PDF</a>
+<a href="@Url.Action("ExportToExcel", "RawMaterialPurchase")" class="btn btn-success">Экспортировать в Excel</a>
+<a href="@Url.Action("ExportToWord", "RawMaterialPurchase")" class="btn btn-success">Экспортировать в Word</a>
+
 <table class="table">
     <thead>
         <tr>

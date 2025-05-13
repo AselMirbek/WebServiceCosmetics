@@ -20,6 +20,8 @@ namespace WebServiceCosmetics.Controllers
         // GET: Budget
         public async Task<IActionResult> Index()
         {
+          
+
             var budget = await _context.Budget.FirstOrDefaultAsync();
             if (budget == null)
             {
@@ -33,6 +35,9 @@ namespace WebServiceCosmetics.Controllers
         // GET: Budget/Edit
         public async Task<IActionResult> Edit()
         {
+          
+
+
             var budget = await _context.Budget.FirstOrDefaultAsync();
             if (budget == null)
             {

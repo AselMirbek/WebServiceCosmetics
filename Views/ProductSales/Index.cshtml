@@ -7,7 +7,9 @@
 <h1>Product Sales</h1>
 
 <a href="@Url.Action("Create", "ProductSales")" class="btn btn-primary">Добавить продажу</a>
-
+<a href="@Url.Action("ExportToPdf", "ProductSales")" class="btn btn-danger">Экспортировать в PDF</a>
+<a href="@Url.Action("ExportToExcel", "ProductSales")" class="btn btn-success">Экспортировать в Excel</a>
+<a href="@Url.Action("ExportToWord", "ProductSales")" class="btn btn-success">Экспортировать в Word</a>
 <table class="table">
     <thead>
         <tr>

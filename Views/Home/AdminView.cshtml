@@ -1,0 +1,18 @@
+﻿@{
+    ViewData["Title"] = "Админ-панель";
+}
+
+<h2>Добро пожаловать, Админ</h2>
+
+<p>У вас полный доступ ко всем разделам.</p>
+<ul>
+    <li><a href="@Url.Action("Index", "Product")">Управление продуктами</a></li>
+    <li><a href="@Url.Action("Index", "ProductSales")">Продажи продуктов</a></li>
+    <li><a href="@Url.Action("Index", "Budget")">Бюджет</a></li>
+    <li><a href="@Url.Action("Index", "Salary")">Зарплаты</a></li>
+    <li><a href="@Url.Action("Index", "Credit")">Кредиты</a></li>
+    <li><a href="@Url.Action("Index", "RawMaterials")">Сырьё</a></li>
+    <li><a href="@Url.Action("Index", "RawMaterialPurchase")">Закупка сырья</a></li>
+    <li><a href="@Url.Action("Index", "ProductManufacturing")">Производство</a></li>
+    <li><a href="@Url.Action("Index", "Ingredient")">Ингредиенты</a></li>
+</ul>
