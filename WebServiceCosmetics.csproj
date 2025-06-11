@@ -9,6 +9,11 @@
 
   <ItemGroup>
     <Content Remove="Views\Home\Employer.cshtml" />
+    <Content Remove="Views\Shared\_AccountLayout.cshtml.cshtml" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="Views\Shared\_AccountLayout.cshtml.cshtml" />
   </ItemGroup>
 
   <ItemGroup>

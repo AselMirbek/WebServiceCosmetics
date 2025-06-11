@@ -371,3 +371,4 @@ FodyWeavers.xsd
 FodyWeavers.xsd"appsettings.json" 
 "Program.cs" 
 >>>>>>> 2744481 (Resolve conflicts)
+/Controllers/AccountController.cs

@@ -8,6 +8,7 @@ using WebServiceCosmetics.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using System;
+using System.Security.Claims;
 
 
 namespace WebServiceCosmetics.Controllers
@@ -36,18 +37,23 @@ namespace WebServiceCosmetics.Controllers
             return View(products);
         }
 
-        private bool IsDirector()
-        {
-            var role = HttpContext.Session.GetString("UserRole");
-            return role == "Director";
-        }
-
+      
         // GET: Product/Create
         public IActionResult Create()
         {
-            if (IsDirector())
-                return RedirectToAction("AccessDenied", "Home");
+            if (User.IsInRole("Директор"))
+            {
+                return RedirectToAction("AccessDenied", "Account");
+            }
 
+            if (User.IsInRole("Менеджер"))
+            {
+                return RedirectToAction("AccessDenied", "Account");
+            }
+            if (User.IsInRole("Технолог"))
+            {
+                return RedirectToAction("AccessDenied", "Account");
+            }
 
 
 
@@ -61,13 +67,20 @@ namespace WebServiceCosmetics.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(ProductModel product)
         {
-            if (IsDirector())
-                return RedirectToAction("AccessDenied", "Home");
+      
+            if (User.IsInRole("Директор"))
+            {
+                return RedirectToAction("AccessDenied", "Account");
+            }
 
-
-
-
-
+            if (User.IsInRole("Менеджер"))
+            {
+                return RedirectToAction("AccessDenied", "Account");
+            }
+            if (User.IsInRole("Технолог"))
+            {
+                return RedirectToAction("AccessDenied", "Account");
+            }
 
             _logger.LogInformation("Валидация ModelState началась.");
 
@@ -121,6 +134,20 @@ namespace WebServiceCosmetics.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id, ProductModel product)
         {
+
+            if (User.IsInRole("Директор"))
+            {
+                return RedirectToAction("AccessDenied", "Account");
+            }
+
+            if (User.IsInRole("Менеджер"))
+            {
+                return RedirectToAction("AccessDenied", "Account");
+            }
+            if (User.IsInRole("Технолог"))
+            {
+                return RedirectToAction("AccessDenied", "Account");
+            }
             if (id != product.Id) return NotFound();
 
             if (ModelState.IsValid)
@@ -151,6 +178,20 @@ namespace WebServiceCosmetics.Controllers
         // GET: RawMaterials/Edit/5
         public async Task<IActionResult> Edit(int? id)
         {
+
+            if (User.IsInRole("Директор"))
+            {
+                return RedirectToAction("AccessDenied", "Account");
+            }
+
+            if (User.IsInRole("Менеджер"))
+            {
+                return RedirectToAction("AccessDenied", "Account");
+            }
+            if (User.IsInRole("Технолог"))
+            {
+                return RedirectToAction("AccessDenied", "Account");
+            }
             if (id == null)
             {
                 return NotFound();
@@ -178,6 +219,20 @@ namespace WebServiceCosmetics.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
+
+            if (User.IsInRole("Директор"))
+            {
+                return RedirectToAction("AccessDenied", "Account");
+            }
+
+            if (User.IsInRole("Менеджер"))
+            {
+                return RedirectToAction("AccessDenied", "Account");
+            }
+            if (User.IsInRole("Технолог"))
+            {
+                return RedirectToAction("AccessDenied", "Account");
+            }
             var product = await _context.Product.FindAsync(id);
             if (product != null)
             {

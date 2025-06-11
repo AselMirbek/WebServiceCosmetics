@@ -1,16 +1,14 @@
-﻿using System.Diagnostics;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using WebServiceCosmetics.Models;
 
 namespace WebServiceCosmetics.Controllers
 {
-    public class HomeController : Controller
+    public class TechnologistController : Controller
     {
-
+        [Authorize(Roles = "Технолог")]
 
         public IActionResult Index()
         {
-
             return View();
         }
     }

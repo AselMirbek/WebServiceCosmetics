@@ -1,16 +1,14 @@
-﻿using System.Diagnostics;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using WebServiceCosmetics.Models;
 
 namespace WebServiceCosmetics.Controllers
 {
-    public class HomeController : Controller
+    [Authorize(Roles = "Менеджер")]
+
+    public class ManagerController : Controller
     {
-
-
         public IActionResult Index()
         {
-
             return View();
         }
     }

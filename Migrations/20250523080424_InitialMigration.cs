@@ -5,7 +5,7 @@
 namespace WebServiceCosmetics.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialMigration2 : Migration
+    public partial class InitialMigration : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)

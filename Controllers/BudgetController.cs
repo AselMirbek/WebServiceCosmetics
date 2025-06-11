@@ -35,7 +35,7 @@ namespace WebServiceCosmetics.Controllers
         // GET: Budget/Edit
         public async Task<IActionResult> Edit()
         {
-          
+           
 
 
             var budget = await _context.Budget.FirstOrDefaultAsync();
@@ -50,6 +50,10 @@ namespace WebServiceCosmetics.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(BudgetModel budgetModel)
         {
+            if (User.IsInRole("Бухгалтер"))
+            {
+                return RedirectToAction("AccessDenied", "Account");
+            }
             if (ModelState.IsValid)
             {
                 var budget = await _context.Budget.FirstOrDefaultAsync();

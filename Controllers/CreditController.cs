@@ -68,6 +68,13 @@ namespace WebServiceCosmetics.Controllers
         // GET: CreditController/Create
         public ActionResult Create()
         {
+            if (User.IsInRole("Директор"))
+            {
+                return RedirectToAction("AccessDenied", "Account");
+            }
+
+
+           
             return View();
         }
 
@@ -76,6 +83,11 @@ namespace WebServiceCosmetics.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(CreditModel newCredit)
         {
+            if (User.IsInRole("Директор"))
+            {
+                return RedirectToAction("AccessDenied", "Account");
+            }
+
             if (ModelState.IsValid)
             {
                 try
@@ -128,7 +140,7 @@ namespace WebServiceCosmetics.Controllers
 
         [HttpGet("Credit/Details/{id}/{startDate}/{endDate}")]
         public IActionResult Details(int id, DateTime startDate, DateTime endDate)
-        {
+        { 
             // Вызываем хранимую процедуру для получения платежей за период
             var payments = _context.Payment
                 .FromSqlRaw("EXEC GetCreditPaymentsByDate @StartDate, @EndDate",
@@ -159,6 +171,11 @@ namespace WebServiceCosmetics.Controllers
         [HttpPost]
         public async Task<IActionResult> Pay(int paymentId)
         {
+            if (User.IsInRole("Директор"))
+            {
+                return RedirectToAction("AccessDenied", "Account");
+            }
+
             var payment = await _context.Payment.FirstOrDefaultAsync(p => p.id == paymentId);
 
             if (payment != null && !payment.IsPaid)
@@ -191,7 +208,7 @@ namespace WebServiceCosmetics.Controllers
 
             return RedirectToAction("Details", new { id = payment.Credit_id });
         }
-        [HttpGet("Credit/Details/ExportToWord/{id}")]
+        [HttpGet("Credit/ExportToWord/{id}")]
 
         public IActionResult ExportToWord(int id)
         {

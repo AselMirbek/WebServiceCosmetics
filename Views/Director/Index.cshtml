@@ -1,0 +1,65 @@
+﻿@{
+    ViewData["Title"] = "Панель директора";
+}
+
+<div class="container mt-5">
+    <div class="card shadow rounded">
+        <div class="card-header bg-primary text-white">
+            <h3 class="mb-0">Панель директора</h3>
+        </div>
+        <div class="card-body">
+            <p class="lead">Добро пожаловать, <strong>@User.Identity.Name</strong>!</p>
+
+            <div class="mb-3 d-flex gap-2">
+                <a href="/Home/Index" class="btn btn-outline-secondary">
+                    <i class="bi bi-house-door-fill"></i> На главную
+                </a>
+                <form asp-controller="Account" asp-action="Logout" method="post" class="d-inline">
+                    <button type="submit" class="btn btn-outline-danger">
+                        <i class="bi bi-box-arrow-right"></i> Выйти
+                    </button>
+                </form>
+            </div>
+
+            <hr />
+
+            <p><strong>Управление:</strong></p>
+            <div class="list-group mb-4">
+                <a href="@Url.Action("Index", "Budget")" class="list-group-item list-group-item-action">
+                    💰 Управление бюджетом
+                </a>
+                <a href="@Url.Action("Index", "Salary")" class="list-group-item list-group-item-action">
+                    👩‍💼 Зарплаты
+                </a>
+                <a href="@Url.Action("Index", "Employer")" class="list-group-item list-group-item-action">
+                    👥 Сотрудники
+                </a>
+            </div>
+
+            <p><strong>Просмотр:</strong></p>
+            <div class="list-group">
+                <a href="@Url.Action("Index", "Credit")" class="list-group-item list-group-item-action">
+                    💳 Кредиты
+                </a>
+                <a href="@Url.Action("Index", "Product")" class="list-group-item list-group-item-action">
+                    📦 Готовая продукция
+                </a>
+                <a href="@Url.Action("Index", "ProductSales")" class="list-group-item list-group-item-action">
+                    📈 Продажи продукции
+                </a>
+                <a href="@Url.Action("Index", "ProductManufacturing")" class="list-group-item list-group-item-action">
+                    🏭 Производство
+                </a>
+                <a href="@Url.Action("Index", "RawMaterials")" class="list-group-item list-group-item-action">
+                    🌾 Сырьё
+                </a>
+                <a href="@Url.Action("Index", "RawMaterialPurchase")" class="list-group-item list-group-item-action">
+                    🛒 Закупка сырья
+                </a>
+                <a href="@Url.Action("Index", "Ingredient")" class="list-group-item list-group-item-action">
+                    🧪 Ингредиенты
+                </a>
+            </div>
+        </div>
+    </div>
+</div>

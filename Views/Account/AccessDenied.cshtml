@@ -1,0 +1,17 @@
+﻿
+@{
+    ViewData["Title"] = "Доступ запрещён";
+}
+
+<h2 class="text-danger">Доступ запрещён</h2>
+<p>У вас нет прав для доступа к этой странице.</p>
+<a asp-controller="Home" asp-action="Index">Вернуться на главную</a>
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial.cshtml");
+    }
+}
+
+<script src="~/lib/jquery/dist/jquery.min.js"></script>
+<script src="~/lib/jquery-validation/dist/jquery.validate.min.js"></script>
+<script src="~/lib/jquery-validation-unobtrusive/jquery.validate.unobtrusive.min.js"></script>

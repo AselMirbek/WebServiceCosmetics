@@ -3,15 +3,19 @@
 
 @{
     ViewData["Title"] = "Управление зарплатами";
-    var selectedYear = ViewBag.SelectedYear ?? DateTime.Now.Year;
-    var selectedMonth = ViewBag.SelectedMonth ?? DateTime.Now.Month;
-    var totalAmount = Model.Where(s => !s.Issued).Sum(s => s.General ?? 0);
+    var selectedYear = ViewBag.SelectedYear != null ? (int)ViewBag.SelectedYear : DateTime.Now.Year;
+    var selectedMonth = ViewBag.SelectedMonth != null ? (int)ViewBag.SelectedMonth : DateTime.Now.Month;
+    var totalUnissuedAmount = Model.Where(s => !s.Issued).Sum(s => s.General ?? 0);
+    var totalAllAmount = Model.Sum(s => s.General ?? 0);
+    var totalIssuedAmount = totalAllAmount - totalUnissuedAmount;
+}
+
+<div class="mb-3">
     <a href="@Url.Action("ExportToPdf", "Salary")" class="btn btn-danger">Экспортировать в PDF</a>
     <a href="@Url.Action("ExportToExcel", "Salary")" class="btn btn-success">Экспортировать в Excel</a>
     <a href="@Url.Action("ExportToWord", "Salary")" class="btn btn-success">Экспортировать в Word</a>
+</div>
 
-
-}
 @if (ViewBag.ErrorMessage != null)
 {
     <div class="alert alert-danger">
@@ -22,31 +26,36 @@
 <div class="container mt-4">
     <h2 class="mb-4">@ViewData["Title"]</h2>
 
-    <!-- Форма выбора периода (без изменений) -->
-    <div class="card mb-4">
-        <div class="card-body">
-            <div class="row">
-                <div class="col-md-3">
-                    <label class="form-label">Год</label>
-                    <select id="yearSelect" class="form-select">
-                        @for (int y = DateTime.Now.Year; y >= DateTime.Now.Year - 5; y--)
-                        {
-                            <option value="@y" selected="@(y == selectedYear)">@y</option>
-                        }
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">Месяц</label>
-                    <select id="monthSelect" class="form-select">
-                        @for (int m = 1; m <= 12; m++)
-                        {
-                            <option value="@m" selected="@(m == selectedMonth)">@m</option>
-                        }
-                    </select>
+    <form id="periodForm" method="get" asp-action="Index" asp-controller="Salary">
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <label class="form-label" for="yearSelect">Год</label>
+                        <select id="yearSelect" name="year" class="form-select">
+                            @for (int y = DateTime.Now.Year; y >= DateTime.Now.Year - 5; y--)
+                            {
+                                <option value="@y" selected="@(y == selectedYear)">@y</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label" for="monthSelect">Месяц</label>
+                        <select id="monthSelect" name="month" class="form-select">
+                            @for (int m = 1; m <= 12; m++)
+                            {
+                                var monthName = CultureInfo.GetCultureInfo("ru-RU").DateTimeFormat.GetMonthName(m);
+                                <option value="@m" selected="@(m == selectedMonth)">@monthName</option>
+                            }
+                        </select>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
+    </form>
+</div>
+
+
 
     <!-- Таблица зарплат с уменьшенным размером -->
     <div class="card">
@@ -79,20 +88,29 @@
                                     <td class="text-end">@(salary.Common?.ToString("N0") ?? "-")</td>
                                     <td class="text-end">@salary.SalaryAmount.ToString("N2")</td>
                                     <td class="text-end">@(salary.Bonus?.ToString("N2") ?? "-")</td>
+                            
+                                    @{
+                                        decimal total = salary.General ?? (salary.SalaryAmount + (salary.Bonus ?? 0m));
+                                        string totalStr = total.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
+                                    }
                                     <td class="text-end">
+                                    
+
                                         @if (!salary.Issued)
                                         {
                                             <input type="number" class="form-control text-end salary-input"
-                                       value="@salary.General?.ToString("0.00")"
-                                       data-salary-id="@salary.ID"
-                                       style="width: 100px;"
-                                       min="0" step="0.01" />
+                                                   value="@totalStr"
+                                                   data-salary-id="@salary.ID"
+                                                   style="width: 100px;"
+                                                   min="0" step="0.01" />
                                         }
                                         else
                                         {
-                                            @salary.General?.ToString("N2")
+                                            @totalStr
                                         }
                                     </td>
+
+
                                     <td>
                                         @if (salary.Issued)
                                         {
@@ -114,9 +132,20 @@
                     <div class="mt-3 text-end">
                         <div class="d-flex align-items-center justify-content-end">
                             <div class="me-3">
-                                <strong>Итого к выплате: </strong>
-                                <span id="totalAmountDisplay" class="fs-5 text-primary">@totalAmount.ToString("N2") сом</span>
+                                <strong>Итого к выплате (невыданные): </strong>
+                                <span id="totalUnissuedAmountDisplay" class="fs-5 text-primary">@totalUnissuedAmount.ToString("N2") сом</span>
                             </div>
+                            <div class="me-3">
+                                <strong>Итого выдано: </strong>
+                                <span class="fs-5 text-success">@totalIssuedAmount.ToString("N2") сом</span>
+                            </div>
+                            <div class="me-3">
+                                <strong>Общая сумма всех зарплат: </strong>
+                                <span id="totalAllAmountDisplay" class="fs-5">@totalAllAmount.ToString("N2") сом</span>
+                            </div>
+
+
+
                             <button id="paySalariesBtn" class="btn btn-primary">
                                 <i class="fas fa-money-bill-wave me-2"></i>Выдать зарплаты
                             </button>
@@ -134,28 +163,30 @@
     </div>
 </div>
 
+
+}
 @section Scripts {
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
+            // При изменении года или месяца — отправляем форму
+        document.getElementById('yearSelect').addEventListener('change', function () {
+            document.getElementById('periodForm').submit();
+        });
+        document.getElementById('monthSelect').addEventListener('change', function () {
+            document.getElementById('periodForm').submit();
+        });
+
         $(document).ready(function () {
-            // Функция для обновления итоговой суммы
             function updateTotalAmount() {
                 let total = 0;
                 $('.salary-input').each(function () {
                     const value = parseFloat($(this).val()) || 0;
                     total += value;
                 });
-                $('#totalAmountDisplay').text(total.toFixed(2) + ' сом');
+                $('#totalAllAmountDisplay').text(total.toFixed(2) + ' сом');
             }
 
-            // Инициализация при загрузке
             updateTotalAmount();
-
-               $('#yearSelect, #monthSelect').change(function () {
-            const year = $('#yearSelect').val();
-            const month = $('#monthSelect').val();
-            window.location.href = `/Salary/Index?year=${year}&month=${month}`;
-        });
-
 
             // Обновление суммы при изменении полей
             $(document).on('change', '.salary-input', function () {
@@ -167,33 +198,13 @@
                     return;
                 }
 
-                // Обновляем сумму перед отправкой
                 updateTotalAmount();
 
                 $.post('/Salary/UpdateSalary', {
                     id: salaryId,
                     generalAmount: newAmount
-                }).fail(function () {
-                    alert('Ошибка соединения');
-                });
-            });
-
-            $('#paySalariesBtn').click(function () {
-                if (!confirm('Вы уверены, что хотите выдать зарплаты за выбранный период?')) {
-                    return;
-                }
-
-                const year = $('#yearSelect').val();
-                const month = $('#monthSelect').val();
-
-                $.post('/Salary/PaySalaries', {
-                    year: year,
-                    month: month
                 }, function (response) {
-                    if (response.success) {
-                        alert(`${response.message}`);
-                        window.location.reload();
-                    } else {
+                    if (!response.success) {
                         alert('Ошибка: ' + response.message);
                     }
                 }).fail(function () {

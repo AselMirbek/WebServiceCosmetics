@@ -1,0 +1,28 @@
+﻿<@{
+    ViewData["Title"] = "Отчеты";
+}
+
+<h2 class="text-center">Отчеты</h2>
+
+<div class="container mt-4">
+    <h4>Производство продуктов</h4>
+    <div class="btn-group mb-3">
+        <a class="btn btn-primary" href="@Url.Action("ExportProductManufacturingToWord", "Report")">Word</a>
+        <a class="btn btn-success" href="@Url.Action("ExportProductManufacturingToExcel", "Report")">Excel</a>
+        <a class="btn btn-danger" href="@Url.Action("ExportProductManufacturingToPdf", "Report")">PDF</a>
+    </div>
+
+    <h4>Продажи продуктов</h4>
+    <div class="btn-group mb-3">
+        <a class="btn btn-primary" href="@Url.Action("ExportProductSalesToWord", "Report")">Word</a>
+        <a class="btn btn-success" href="@Url.Action("ExportProductSalesToExcel", "Report")">Excel</a>
+        <a class="btn btn-danger" href="@Url.Action("ExportProductSalesToPdf", "Report")">PDF</a>
+    </div>
+
+    <h4>Закупка сырья</h4>
+    <div class="btn-group mb-3">
+        <a class="btn btn-primary" href="@Url.Action("ExportRawMaterialPurchaseToWord", "Report")">Word</a>
+        <a class="btn btn-success" href="@Url.Action("ExportRawMaterialPurchaseToExcel", "Report")">Excel</a>
+        <a class="btn btn-danger" href="@Url.Action("ExportRawMaterialPurchaseToPdf", "Report")">PDF</a>
+    </div>
+</div>

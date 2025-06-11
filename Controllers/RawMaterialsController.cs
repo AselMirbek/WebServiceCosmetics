@@ -37,8 +37,23 @@ namespace WebServiceCosmetics.Controllers
 
         // GET: RawMaterials/Create
         public IActionResult Create()
-       {
-           ViewBag.Units = new SelectList(_context.Units, "Id", "Name");
+        {
+            if (User.IsInRole("Директор"))
+            {
+                return RedirectToAction("AccessDenied", "Account");
+            }
+
+
+            if (User.IsInRole("Менеджер"))
+            {
+                return RedirectToAction("AccessDenied", "Account");
+            }
+
+            if (User.IsInRole("Технолог"))
+            {
+                return RedirectToAction("AccessDenied", "Account");
+            }
+            ViewBag.Units = new SelectList(_context.Units, "Id", "Name");
             return View(new RawMaterialModel());
         }
 
@@ -48,6 +63,21 @@ namespace WebServiceCosmetics.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(RawMaterialModel material)
         {
+            if (User.IsInRole("Директор"))
+            {
+                return RedirectToAction("AccessDenied", "Account");
+            }
+
+
+            if (User.IsInRole("Менеджер"))
+            {
+                return RedirectToAction("AccessDenied", "Account");
+            }
+
+            if (User.IsInRole("Технолог"))
+            {
+                return RedirectToAction("AccessDenied", "Account");
+            }
             _logger.LogInformation("Валидация ModelState началась.");
 
             // Проверка обязательности Unit_id
@@ -100,6 +130,21 @@ namespace WebServiceCosmetics.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id, RawMaterialModel material)
         {
+            if (User.IsInRole("Директор"))
+            {
+                return RedirectToAction("AccessDenied", "Account");
+            }
+
+
+            if (User.IsInRole("Менеджер"))
+            {
+                return RedirectToAction("AccessDenied", "Account");
+            }
+
+            if (User.IsInRole("Технолог"))
+            {
+                return RedirectToAction("AccessDenied", "Account");
+            }
             if (id != material.Id) return NotFound();
 
             if (ModelState.IsValid)
@@ -130,6 +175,21 @@ namespace WebServiceCosmetics.Controllers
         // GET: RawMaterials/Edit/5
         public async Task<IActionResult> Edit(int? id)
         {
+            if (User.IsInRole("Директор"))
+            {
+                return RedirectToAction("AccessDenied", "Account");
+            }
+
+
+            if (User.IsInRole("Менеджер"))
+            {
+                return RedirectToAction("AccessDenied", "Account");
+            }
+
+            if (User.IsInRole("Технолог"))
+            {
+                return RedirectToAction("AccessDenied", "Account");
+            }
             if (id == null)
             {
                 return NotFound();
@@ -157,6 +217,21 @@ namespace WebServiceCosmetics.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
+            if (User.IsInRole("Директор"))
+            {
+                return RedirectToAction("AccessDenied", "Account");
+            }
+
+
+            if (User.IsInRole("Менеджер"))
+            {
+                return RedirectToAction("AccessDenied", "Account");
+            }
+
+            if (User.IsInRole("Технолог"))
+            {
+                return RedirectToAction("AccessDenied", "Account");
+            }
             var material = await _context.Raw_Materials.FindAsync(id);
             if (material != null)
             {

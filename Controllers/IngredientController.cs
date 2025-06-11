@@ -32,7 +32,18 @@ namespace WebServiceCosmetics.Controllers
         [HttpGet]
 
         public IActionResult Create(int productId)
-        { 
+        {
+            if (User.IsInRole("Директор"))
+            {
+                return RedirectToAction("AccessDenied", "Account");
+            }
+
+            if (User.IsInRole("Менеджер"))
+            {
+                return RedirectToAction("AccessDenied", "Account");
+            }
+         
+
             var product = _context.Product.Find(productId); // Находим продукт по ID
             if (product == null)
             {
@@ -50,6 +61,16 @@ namespace WebServiceCosmetics.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(IngredientModel ingredient)
         {
+            if (User.IsInRole("Директор"))
+            {
+                return RedirectToAction("AccessDenied", "Account");
+            }
+
+            if (User.IsInRole("Менеджер"))
+            {
+                return RedirectToAction("AccessDenied", "Account");
+            }
+       
             // Проверка, существует ли уже этот ингредиент
             bool exists = await _context.Ingredient.AnyAsync(i =>
                  i.Product_id == ingredient.Product_id &&
@@ -123,6 +144,18 @@ namespace WebServiceCosmetics.Controllers
         // GET: Ingredient/Edit/5
         public async Task<IActionResult> Edit(int? id)
         {
+
+            if (User.IsInRole("Директор"))
+            {
+                return RedirectToAction("AccessDenied", "Account");
+            }
+
+            if (User.IsInRole("Менеджер"))
+            {
+                return RedirectToAction("AccessDenied", "Account");
+            }
+         
+
             if (id == null) { return NotFound(); }
 
             var ingredient = await _context.Ingredient.FindAsync(id);
@@ -154,6 +187,19 @@ namespace WebServiceCosmetics.Controllers
         [HttpPost]
     public IActionResult Delete(int id)
         {
+            if (User.IsInRole("Директор"))
+            {
+                return RedirectToAction("AccessDenied", "Account");
+            }
+
+            if (User.IsInRole("Менеджер"))
+            {
+                return RedirectToAction("AccessDenied", "Account");
+            }
+            if (User.IsInRole("Технолог"))
+            {
+                return RedirectToAction("AccessDenied", "Account");
+            }
             var ingredient = _context.Ingredient.FirstOrDefault(i => i.Id == id);
             if (ingredient == null)
             {

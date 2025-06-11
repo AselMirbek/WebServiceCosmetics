@@ -6,8 +6,11 @@ using WebServiceCosmetics.Models;
 
 
 namespace WebServiceCosmetics.Data;
+// Data/ApplicationDbContext.cs
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 
-public class ApplicationDbContext : IdentityDbContext<CustomUser>
+public class ApplicationDbContext : IdentityDbContext<User>
 {
     public DbSet<Employer> Employees{ get; set; }
     public DbSet<Positions> Positions { get; set; }
