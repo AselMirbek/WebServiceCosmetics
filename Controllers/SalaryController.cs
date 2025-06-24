@@ -108,6 +108,8 @@ namespace WebServiceCosmetics.Controllers
         [HttpPost]
         public async Task<IActionResult> UpdateSalary(int id, double generalAmount)
         {
+            // 1. Временное хранение в параметрах метода
+            // 2. Обновление в контексте EF Core
             try
             {
                 var successParam = new SqlParameter("@Success", SqlDbType.Bit) { Direction = ParameterDirection.Output };
@@ -116,7 +118,7 @@ namespace WebServiceCosmetics.Controllers
                 var parameters = new[]
                 {
                     new SqlParameter("@SalaryID", id),
-                    new SqlParameter("@NewGeneralAmount", generalAmount),
+                    new SqlParameter("@NewGeneralAmount", generalAmount),// Присваивание нового значения
                     successParam,
                     messageParam
                 };

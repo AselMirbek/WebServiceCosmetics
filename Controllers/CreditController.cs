@@ -37,12 +37,28 @@ namespace WebServiceCosmetics.Controllers
         }
 
         // GET: CreditController
-        public async Task<ActionResult> Index()
+        public async Task<IActionResult> Index(DateTime? startDate, DateTime? endDate)
         {
-            // Получаем список всех кредитов из базы данных
-            var credits = await _context.Credit.ToListAsync();
-            return View(credits); // Отображаем список кредитов
+            var query = _context.Credit.AsQueryable();
+
+            if (startDate.HasValue)
+            {
+                query = query.Where(c => c.StartDate >= startDate.Value);
+            }
+
+            if (endDate.HasValue)
+            {
+                query = query.Where(c => c.StartDate <= endDate.Value);
+            }
+
+            // Сохраняем выбранные даты в ViewData, чтобы показать их в форме
+            ViewData["StartDate"] = startDate?.ToString("yyyy-MM-dd") ?? "";
+            ViewData["EndDate"] = endDate?.ToString("yyyy-MM-dd") ?? "";
+
+            var credits = await query.ToListAsync();
+            return View(credits);
         }
+
 
         [HttpGet("Credit/Details/{id}")]
         public IActionResult Details(int id)
@@ -102,10 +118,11 @@ namespace WebServiceCosmetics.Controllers
                 new SqlParameter("@LoanAmount", newCredit.Amount),
                 new SqlParameter("@AnnualInterestRate", newCredit.AnnualInterestRate),
                 new SqlParameter("@LoanTermYears", newCredit.Years),
-                new SqlParameter("@StartDate", newCredit.StartDate)
+                new SqlParameter("@StartDate", newCredit.StartDate),
+                 new SqlParameter("@PaymentType", newCredit.PaymentType)
             };
 
-                    await _context.Database.ExecuteSqlRawAsync("EXEC CreateCreditWithSchedule @CreditId, @LoanAmount, @AnnualInterestRate, @LoanTermYears, @StartDate", parameters);
+                    await _context.Database.ExecuteSqlRawAsync("EXEC CreateCreditWithSchedule @CreditId, @LoanAmount, @AnnualInterestRate, @LoanTermYears, @StartDate,@PaymentType", parameters);
 
                     // Обновление бюджета
                     await _context.Database.ExecuteSqlRawAsync("EXEC UpdateBudgetAmountCredit @TransactionType = {0}, @Amount = {1}", "Credit", newCredit.Amount);
@@ -128,25 +145,11 @@ namespace WebServiceCosmetics.Controllers
 
 
 
-        // Метод поиска платежей по дате (для демонстрации поиска)
-        public async Task<IActionResult> SearchPayments(DateTime startDate, DateTime endDate)
-        {
-            var payments = await _context.Payment
-                .Where(p => p.PaymentDate >= startDate && p.PaymentDate <= endDate)
-                .ToListAsync();
-
-            return View(payments); // Отображаем платежи, попавшие в указанный диапазон
-        }
-
+     
         [HttpGet("Credit/Details/{id}/{startDate}/{endDate}")]
         public IActionResult Details(int id, DateTime startDate, DateTime endDate)
         { 
-            // Вызываем хранимую процедуру для получения платежей за период
-            var payments = _context.Payment
-                .FromSqlRaw("EXEC GetCreditPaymentsByDate @StartDate, @EndDate",
-                            new SqlParameter("@StartDate", startDate),
-                            new SqlParameter("@EndDate", endDate))
-                .ToList();
+           
 
             var credit = _context.Credit
                 .Include(c => c.Payment)
@@ -166,203 +169,43 @@ namespace WebServiceCosmetics.Controllers
 
             return View(viewModel);
         }
-
-        // Действие для оплаты
+        // оплата
         [HttpPost]
-        public async Task<IActionResult> Pay(int paymentId)
+        public async Task<IActionResult> Pay(int paymentId )
         {
             if (User.IsInRole("Директор"))
             {
                 return RedirectToAction("AccessDenied", "Account");
             }
 
-            var payment = await _context.Payment.FirstOrDefaultAsync(p => p.id == paymentId);
-
-            if (payment != null && !payment.IsPaid)
+            try
             {
-                payment.IsPaid = true;
-                payment.PaymentDate = DateTime.Now; // Устанавливаем дату платежа
-                                                    // Обновляем остаток по платежу, если необходимо
+                var parameters = new[]
+       {
+            new SqlParameter("@PaymentId", paymentId),
+        };
 
-                // Обновляем остаток кредита
-                var credit = await _context.Credit.FirstOrDefaultAsync(c => c.id == payment.Credit_id);
-                if (credit != null)
-                {
-                    credit.RemainingAmount -= payment.PaymentAmount; // Уменьшаем остаток кредита на сумму платежа
-                    try
-                    {
-                        // Выполняем хранимую процедуру обновления бюджета
-                        await _context.Database.ExecuteSqlRawAsync("EXEC UpdateBudgetAmountCredit @TransactionType = {0}, @Amount = {1}", "Payment", payment.PaymentAmount);
-                    }
-                    catch (Exception ex)
-                    {
-                        // Если произошла ошибка (например, недостаточно средств в бюджете), выводим сообщение
-                        TempData["Message"] = $"Ошибка: {ex.Message}";
-                        return RedirectToAction("Details", new { id = payment.Credit_id });
-                    }
-                }
+                await _context.Database.ExecuteSqlRawAsync("EXEC PayCreditPayment @PaymentId", parameters);
 
-
-                await _context.SaveChangesAsync();
+                TempData["Message"] = "Платеж успешно выполнен.";
             }
+            catch (SqlException ex)
+            {
+                TempData["Message"] = $"Ошибка при оплате: {ex.Message}";
+            }
+            catch (Exception ex)
+            {
+                TempData["Message"] = $"Произошла ошибка: {ex.Message}";
+            }
+
+            // Получаем Credit_id для редиректа
+            var payment = await _context.Payment.FirstOrDefaultAsync(p => p.id == paymentId);
+            if (payment == null)
+                return NotFound();
 
             return RedirectToAction("Details", new { id = payment.Credit_id });
         }
-        [HttpGet("Credit/ExportToWord/{id}")]
 
-        public IActionResult ExportToWord(int id)
-        {
-            var credit = _context.Credit
-                .Include(c => c.Payment)
-                .FirstOrDefault(c => c.id == id);
-
-            if (credit == null)
-            {
-                return NotFound();
-            }
-
-            using (MemoryStream memoryStream = new MemoryStream())
-            {
-                using (WordprocessingDocument wordDocument = WordprocessingDocument.Create(memoryStream, WordprocessingDocumentType.Document))
-                {
-                    var mainPart = wordDocument.AddMainDocumentPart();
-                    mainPart.Document = new DocumentFormat.OpenXml.Wordprocessing.Document(new Body());
-
-                    var body = mainPart.Document.Body;
-
-                    // Заголовок документа
-                    var title = new Paragraph(
-                        new DocumentFormat.OpenXml.Drawing.Run(
-                            new DocumentFormat.OpenXml.Math.Text($"Кредит № {credit.id}")));
-                    body.Append(title);
-
-                    // Информация о кредите
-                    var creditDetails = new Paragraph(
-                        new Run(
-                            new DocumentFormat.OpenXml.Math.Text($"Сумма кредита: {credit.Amount}")));
-
-                    body.Append(creditDetails);
-
-                    // Платежи по кредиту
-                    var paymentsParagraph = new Paragraph(
-                        new Run(
-                            new DocumentFormat.OpenXml.Math.Text("Платежи по кредиту:")));
-                    body.Append(paymentsParagraph);
-
-                    foreach (var payment in credit.Payment)
-                    {
-                        var paymentDetails = new Paragraph(
-                            new Run(
-                                new DocumentFormat.OpenXml.Math.Text($"Дата платежа: {payment.PaymentDate}, Сумма: {payment.PaymentAmount}")));
-                        body.Append(paymentDetails);
-                    }
-
-                    wordDocument.Save();
-                }
-
-                return File(memoryStream.ToArray(), "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "CreditDetails.docx");
-            }
-        }
-        [HttpGet("Credit/ExportToExcel/{id}")]
-
-        public IActionResult ExportToExcel(int id)
-        {
-            var credit = _context.Credit
-                .Include(c => c.Payment)
-                .FirstOrDefault(c => c.id == id);
-
-            if (credit == null)
-            {
-                return NotFound();
-            }
-
-            using (MemoryStream memoryStream = new MemoryStream())
-            {
-                using (SpreadsheetDocument spreadsheetDocument = SpreadsheetDocument.Create(memoryStream, SpreadsheetDocumentType.Workbook))
-                {
-                    WorkbookPart workbookPart = spreadsheetDocument.AddWorkbookPart();
-                    workbookPart.Workbook = new Workbook();
-                    WorksheetPart worksheetPart = workbookPart.AddNewPart<WorksheetPart>();
-                    worksheetPart.Worksheet = new Worksheet(new SheetData());
-
-                    Sheets sheets = spreadsheetDocument.WorkbookPart.Workbook.AppendChild(new Sheets());
-                    Sheet sheet = new Sheet() { Name = "Кредитные данные", SheetId = 1, Id = spreadsheetDocument.WorkbookPart.GetIdOfPart(worksheetPart) };
-                    sheets.Append(sheet);
-
-                    SheetData sheetData = worksheetPart.Worksheet.GetFirstChild<SheetData>();
-
-                    // Заголовки столбцов
-                    Row headerRow = new Row();
-                    headerRow.Append(
-                        new Cell() { CellValue = new CellValue("Кредит №"), DataType = CellValues.String },
-                        new Cell() { CellValue = new CellValue("Сумма кредита"), DataType = CellValues.String },
-                        new Cell() { CellValue = new CellValue("Дата платежа"), DataType = CellValues.String },
-                        new Cell() { CellValue = new CellValue("Сумма платежа"), DataType = CellValues.String }
-                    );
-                    sheetData.Append(headerRow);
-
-                    // Данные по кредиту
-                    foreach (var payment in credit.Payment)
-                    {
-                        Row row = new Row();
-                        row.Append(
-                            new Cell() { CellValue = new CellValue(credit.id.ToString()), DataType = CellValues.Number },
-                            new Cell() { CellValue = new CellValue(credit.Amount.ToString()), DataType = CellValues.Number },
-                            new Cell() { CellValue = new CellValue(payment.PaymentDate.ToString("yyyy-MM-dd")), DataType = CellValues.String },
-                            new Cell() { CellValue = new CellValue(payment.PaymentAmount.ToString()), DataType = CellValues.Number }
-                        );
-                        sheetData.Append(row);
-                    }
-
-                    spreadsheetDocument.Save();
-                }
-
-                return File(memoryStream.ToArray(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "CreditDetails.xlsx");
-            }
-
-        }
-        [HttpGet("Credit/ExportToPdf/{id}")]
-
-        public IActionResult ExportToPdf(int id)
-        {
-            var credit = _context.Credit
-                .Include(c => c.Payment)
-                .FirstOrDefault(c => c.id == id);
-
-            if (credit == null)
-            {
-                return NotFound();
-            }
-
-            using (MemoryStream memoryStream = new MemoryStream())
-            {
-                PdfDocument document = new PdfDocument();
-                PdfPage page = document.AddPage();
-                XGraphics gfx = XGraphics.FromPdfPage(page);
-
-                // Заголовок
-                XFont fontTitle = new XFont("Arial", 20, XFontStyle.Bold);
-                gfx.DrawString($"Кредит № {credit.id}", fontTitle, XBrushes.Black, new XPoint(40, 40));
-
-                // Информация о кредите
-                XFont fontContent = new XFont("Arial", 12);
-                gfx.DrawString($"Сумма кредита: {credit.Amount}", fontContent, XBrushes.Black, new XPoint(40, 80));
-
-                // Платежи по кредиту
-                gfx.DrawString("Платежи по кредиту:", fontContent, XBrushes.Black, new XPoint(40, 120));
-
-                int yPosition = 140;
-                foreach (var payment in credit.Payment)
-                {
-                    gfx.DrawString($"Дата: {payment.PaymentDate.ToString("yyyy-MM-dd")}, Сумма: {payment.PaymentAmount}", fontContent, XBrushes.Black, new XPoint(40, yPosition));
-                    yPosition += 20;
-                }
-
-                document.Save(memoryStream, false);
-                return File(memoryStream.ToArray(), "application/pdf", "CreditDetails.pdf");
-            }
-        }
-   
     }
 }
 

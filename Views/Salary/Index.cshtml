@@ -23,6 +23,7 @@
     </div>
 }
 
+
 <div class="container mt-4">
     <h2 class="mb-4">@ViewData["Title"]</h2>
 
@@ -175,7 +176,7 @@
         document.getElementById('monthSelect').addEventListener('change', function () {
             document.getElementById('periodForm').submit();
         });
-
+        // обновление итого сумму общей зп
         $(document).ready(function () {
             function updateTotalAmount() {
                 let total = 0;
@@ -185,12 +186,16 @@
                 });
                 $('#totalAllAmountDisplay').text(total.toFixed(2) + ' сом');
             }
+            // newAmount — новое значение, введённое пользователем
+
 
             updateTotalAmount();
 
             // Обновление суммы при изменении полей
             $(document).on('change', '.salary-input', function () {
                 const salaryId = $(this).data('salary-id');
+                // Значение берётся прямо из поля ввода
+
                 const newAmount = parseFloat($(this).val()) || 0;
 
                 if (isNaN(newAmount) || newAmount < 0) {
@@ -202,7 +207,7 @@
 
                 $.post('/Salary/UpdateSalary', {
                     id: salaryId,
-                    generalAmount: newAmount
+                    generalAmount: newAmount // Новое значение
                 }, function (response) {
                     if (!response.success) {
                         alert('Ошибка: ' + response.message);

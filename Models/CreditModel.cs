@@ -2,6 +2,7 @@
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
 using WebServiceCosmetics.Models;
+
 namespace WebServiceCosmetics.Models
 {
     public class CreditModel
@@ -14,6 +15,11 @@ namespace WebServiceCosmetics.Models
         public decimal AnnualInterestRate { get; set; }
         public decimal? RemainingAmount { get; set; }
         public decimal? Penalties { get; set; }
+        [Required]
+        [Display(Name = "Тип платежа")]
+        [RegularExpression("Annuity|Differentiated", ErrorMessage = "Допустимые значения: Annuity или Differentiated")]
+        public string PaymentType { get; set; } = "Annuity"; // Значение по умолчанию
+
         public ICollection<PaymentsModel> Payment { get; set; } = new List<PaymentsModel>();
 
     }
