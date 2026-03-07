@@ -116,8 +116,24 @@ namespace WebServiceCosmetics.Controllers
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                return BadRequest($"Ошибка при выполнении транзакции: {ex.Message}");
+
+                // Если ошибка из хранимой процедуры
+                if (ex.Message.Contains("Не хватает продукта"))
+                {
+                    ModelState.AddModelError("Quantity", "Не хватает продукта на складе.");
+                }
+                else
+                {
+                    ModelState.AddModelError("", "Ошибка при выполнении транзакции.");
+                }
+
+                // Перезагрузить данные для комбобоксов
+                ViewBag.Product = new SelectList(_context.Product, "Id", "Name", productSales.Product_id);
+                ViewBag.Employees = new SelectList(_context.Employees, "Id", "Full_Name", productSales.Employees_id);
+
+                return View(productSales);
             }
+
         }
 
 
