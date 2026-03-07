@@ -105,7 +105,7 @@ namespace WebServiceCosmetics.Controllers
             if (rawMaterial != null)
             {
                 rawMaterial.Quantity += purchase.Quantity;
-                rawMaterial.Price += purchase.Amount;
+                rawMaterial.Price = Math.Round(rawMaterial.Price + purchase.Amount, 2);
                 _context.Update(rawMaterial);
             }
 

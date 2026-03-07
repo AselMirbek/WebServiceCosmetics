@@ -212,14 +212,14 @@ namespace WebServiceCosmetics.Controllers
                 var costPerUnit = raw.Quantity > 0 ? raw.Price / raw.Quantity : 0; // Цена за единицу
                   // Считаем, сколько будет стоить использованное количество сырья
 
-                var cost = (decimal)costPerUnit * used;
+                var cost = Math.Round(costPerUnit * used, 2);
                 // Списываем сырьё с остатка: уменьшаем количество на использованное
-                raw.Quantity -= used; // Списываем сырье
+                raw.Quantity = Math.Max(0, raw.Quantity - used); // Списываем сырье
                 // Уменьшаем общую стоимость сырья на сумму списанного сырья
                // raw.Price — это общая стоимость всего сырья(а не цена за единицу).
 
 
-                raw.Price -= cost;    // Уменьшаем стоимость сырья
+                raw.Price = Math.Max(0, raw.Price - cost);    // Уменьшаем стоимость сырья
                 // Обновляем данные о сырье в базе данных (контексте)
 
                 _context.Update(raw); 
@@ -246,7 +246,7 @@ namespace WebServiceCosmetics.Controllers
             //product.Quantity — это общее количество единиц готового продукта, доступных на складе.
             product.Quantity += quantity; // Увеличиваем запас продукта
             //product.Price как общая себестоимость всей партии, а не цена за штуку.
-            product.Price += price;       // Увеличиваем общую стоимость (или себестоимость)
+            product.Price = Math.Round(product.Price + price, 2);       // Увеличиваем общую стоимость (или себестоимость)
             _context.Update(product);     // Обновляем БД
         }
 
