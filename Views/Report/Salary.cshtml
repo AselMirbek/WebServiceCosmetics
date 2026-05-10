@@ -1,0 +1,570 @@
+﻿@* Views/Report/Salary.cshtml *@
+
+@using System.Globalization
+@using Microsoft.AspNetCore.Mvc.Rendering
+
+@model WebServiceCosmetics.ViewModel.SalaryReportVM
+
+@{
+    ViewData["Title"] = "Salary Report";
+
+    decimal totalSalary =
+        Model.Salaries.Sum(x =>
+            x.SalaryAmount);
+
+    decimal totalBonus =
+        Model.Salaries.Sum(x =>
+            x.Bonus ?? 0);
+
+    decimal totalGeneral =
+        Model.Salaries.Sum(x =>
+            x.General ?? 0);
+
+    decimal totalIssued =
+        Model.Salaries
+            .Where(x => x.Issued)
+            .Sum(x => x.General ?? 0);
+
+    decimal totalNotIssued =
+        Model.Salaries
+            .Where(x => !x.Issued)
+            .Sum(x => x.General ?? 0);
+}
+
+<div class="container mt-5">
+
+    <!-- HEADER -->
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+
+        <h1>
+            Salary Report
+        </h1>
+
+        <div>
+
+            <a asp-action="Index"
+               class="btn btn-outline-dark me-2">
+
+                Dashboard
+
+            </a>
+
+            <a asp-action="SalaryExcel"
+               class="btn btn-success me-2">
+
+                Excel
+
+            </a>
+
+            <a asp-action="SalaryPdf"
+               class="btn btn-danger me-2">
+
+                PDF
+
+            </a>
+
+            <a asp-action="SalaryWord"
+               class="btn btn-dark">
+
+                Word
+
+            </a>
+
+        </div>
+
+    </div>
+
+    <!-- FILTER -->
+
+    <div class="card shadow-sm border-0 mb-4">
+
+        <div class="card-body">
+
+            <form method="get">
+
+                <div class="row g-3">
+
+                    <!-- YEAR FROM -->
+
+                    <div class="col-md-2">
+
+                        <label class="form-label">
+                            Year From
+                        </label>
+
+                        <select name="YearFrom"
+                                class="form-select">
+
+                            @for (int y = DateTime.Now.Year;
+                                                        y >= 2020;
+                                                        y--)
+                            {
+                                <option value="@y"
+                                        selected="@(y == Model.Filter.YearFrom)">
+
+                                    @y
+
+                                </option>
+                            }
+
+                        </select>
+
+                    </div>
+
+                    <!-- MONTH FROM -->
+
+                    <div class="col-md-2">
+
+                        <label class="form-label">
+                            Month From
+                        </label>
+
+                        <select name="MonthFrom"
+                                class="form-select">
+
+                            @for (int m = 1; m <= 12; m++)
+                            {
+                                var monthName =
+                                CultureInfo
+                                .GetCultureInfo("ru-RU")
+                                .DateTimeFormat
+                                .GetMonthName(m);
+
+                                <option value="@m"
+                                        selected="@(m == Model.Filter.MonthFrom)">
+
+                                    @monthName
+
+                                </option>
+                            }
+
+                        </select>
+
+                    </div>
+
+                    <!-- YEAR TO -->
+
+                    <div class="col-md-2">
+
+                        <label class="form-label">
+                            Year To
+                        </label>
+
+                        <select name="YearTo"
+                                class="form-select">
+
+                            @for (int y = DateTime.Now.Year;
+                                                        y >= 2020;
+                                                        y--)
+                            {
+                                <option value="@y"
+                                        selected="@(y == Model.Filter.YearTo)">
+
+                                    @y
+
+                                </option>
+                            }
+
+                        </select>
+
+                    </div>
+
+                    <!-- MONTH TO -->
+
+                    <div class="col-md-2">
+
+                        <label class="form-label">
+                            Month To
+                        </label>
+
+                        <select name="MonthTo"
+                                class="form-select">
+
+                            @for (int m = 1; m <= 12; m++)
+                            {
+                                var monthName =
+                                CultureInfo
+                                .GetCultureInfo("ru-RU")
+                                .DateTimeFormat
+                                .GetMonthName(m);
+
+                                <option value="@m"
+                                        selected="@(m == Model.Filter.MonthTo)">
+
+                                    @monthName
+
+                                </option>
+                            }
+
+                        </select>
+
+                    </div>
+
+                    <!-- EMPLOYEE -->
+
+                    <div class="col-md-2">
+
+                        <label class="form-label">
+                            Employee
+                        </label>
+
+                        <select name="Employees_id"
+                                class="form-select"
+                                asp-items="Model.Employees">
+
+                            <option value="">
+                                All Employees
+                            </option>
+
+                        </select>
+
+                    </div>
+
+                    <!-- STATUS -->
+
+                    <div class="col-md-2">
+
+                        <label class="form-label">
+                            Status
+                        </label>
+
+                        <select name="Issued"
+                                class="form-select">
+
+                            <option value="">
+                                All
+                            </option>
+
+                            <option value="true">
+                                Issued
+                            </option>
+
+                            <option value="false">
+                                Not Issued
+                            </option>
+
+                        </select>
+
+                    </div>
+
+                    <!-- BUTTON -->
+
+                    <div class="col-md-12">
+
+                        <button class="btn btn-primary w-100">
+
+                            Filter
+
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+    <!-- KPI -->
+
+    <div class="row mb-4">
+
+        <div class="col-md-3">
+
+            <div class="card shadow-sm border-0">
+
+                <div class="card-body text-center">
+
+                    <h6 class="text-muted">
+                        Total Salary
+                    </h6>
+
+                    <h3>
+                        @totalSalary.ToString("N2")
+                    </h3>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="col-md-3">
+
+            <div class="card shadow-sm border-0">
+
+                <div class="card-body text-center">
+
+                    <h6 class="text-muted">
+                        Total Bonus
+                    </h6>
+
+                    <h3>
+                        @totalBonus.ToString("N2")
+                    </h3>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="col-md-3">
+
+            <div class="card shadow-sm border-0">
+
+                <div class="card-body text-center">
+
+                    <h6 class="text-muted">
+                        Issued
+                    </h6>
+
+                    <h3 class="text-success">
+                        @totalIssued.ToString("N2")
+                    </h3>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="col-md-3">
+
+            <div class="card shadow-sm border-0">
+
+                <div class="card-body text-center">
+
+                    <h6 class="text-muted">
+                        Not Issued
+                    </h6>
+
+                    <h3 class="text-danger">
+                        @totalNotIssued.ToString("N2")
+                    </h3>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- TABLE -->
+
+    <div class="card shadow-sm border-0">
+
+        <div class="card-body">
+
+            <div class="table-responsive">
+
+                <table class="table table-bordered table-hover align-middle">
+
+                    <thead class="table-light">
+
+                        <tr>
+
+                            <th>
+                                Employee
+                            </th>
+
+                            <th class="text-end">
+                                Purchases
+                            </th>
+
+                            <th class="text-end">
+                                Production
+                            </th>
+
+                            <th class="text-end">
+                                Sales
+                            </th>
+
+                            <th class="text-end">
+                                Total Operations
+                            </th>
+
+                            <th class="text-end">
+                                Salary
+                            </th>
+
+                            <th class="text-end">
+                                Bonus
+                            </th>
+
+                            <th class="text-end">
+                                Total
+                            </th>
+
+                            <th>
+                                Status
+                            </th>
+
+                            <th>
+                                Year
+                            </th>
+
+                            <th>
+                                Month
+                            </th>
+
+                        </tr>
+
+                    </thead>
+
+                    <tbody>
+
+                        @foreach (var item in Model.Salaries)
+                        {
+                            <tr>
+
+                                <td>
+                                    @(item.Employees?.Full_Name ?? "No employee")
+                                </td>
+
+                                <td class="text-end">
+                                    @(item.NumberOfPurchases ?? 0)
+                                </td>
+
+                                <td class="text-end">
+                                    @(item.NumberOfProductions ?? 0)
+                                </td>
+
+                                <td class="text-end">
+                                    @(item.NumberOfSales ?? 0)
+                                </td>
+
+                                <td class="text-end">
+                                    @(item.Common ?? 0)
+                                </td>
+
+                                <td class="text-end">
+                                    @item.SalaryAmount.ToString("N2")
+                                </td>
+
+                                <td class="text-end">
+                                    @((item.Bonus ?? 0).ToString("N2"))
+                                </td>
+
+                                <td class="text-end fw-bold">
+                                    @((item.General ?? 0).ToString("N2"))
+                                </td>
+
+                                <td>
+
+                                    @if (item.Issued)
+                                    {
+                                        <span class="badge bg-success">
+                                            Issued
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-danger">
+                                            Not Issued
+                                        </span>
+                                    }
+
+                                </td>
+
+                                <td>
+                                    @item.Year
+                                </td>
+
+                                <td>
+
+                                    @{
+                                        var monthName =
+                                        System.Globalization.CultureInfo
+                                        .GetCultureInfo("ru-RU")
+                                        .DateTimeFormat
+                                        .GetMonthName(item.Month);
+                                    }
+
+                                    @monthName
+
+                                </td>
+
+                            </tr>
+                        }
+
+                    </tbody>
+
+                    <!-- TOTAL -->
+
+                    <tfoot class="table-secondary fw-bold">
+
+                        <tr>
+
+                            <td>
+                                TOTAL
+                            </td>
+
+                            <td class="text-end">
+                                @(Model.Salaries.Sum(x =>
+                                                                x.NumberOfPurchases ?? 0))
+                            </td>
+
+                            <td class="text-end">
+                                @(Model.Salaries.Sum(x =>
+                                                                x.NumberOfProductions ?? 0))
+                            </td>
+
+                            <td class="text-end">
+                                @(Model.Salaries.Sum(x =>
+                                                                x.NumberOfSales ?? 0))
+                            </td>
+
+                            <td class="text-end">
+                                @(Model.Salaries.Sum(x =>
+                                                                x.Common ?? 0))
+                            </td>
+
+                            <td class="text-end">
+                                @totalSalary.ToString("N2")
+                            </td>
+
+                            <td class="text-end">
+                                @totalBonus.ToString("N2")
+                            </td>
+
+                            <td class="text-end">
+                                @totalGeneral.ToString("N2")
+                            </td>
+
+                            <td>
+                            </td>
+
+                            <td colspan="2">
+
+                                Records:
+                                @Model.Salaries.Count
+
+                            </td>
+
+                        </tr>
+
+                    </tfoot>
+
+                </table>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<style>
+
+    .table td,
+    .table th {
+        white-space: nowrap;
+    }
+
+</style>

@@ -1,0 +1,337 @@
+﻿@* Views/Report/Purchases.cshtml *@
+
+@model WebServiceCosmetics.ViewModel.PurchaseReportVM
+
+<div class="container mt-5">
+
+    <!-- HEADER -->
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+
+        <h1>
+            Purchases Report
+        </h1>
+
+        <div>
+
+            <a asp-action="Index"
+               class="btn btn-outline-dark me-2">
+
+                Back to Dashboard
+
+            </a>
+
+            <a asp-action="PurchasesExcel"
+               class="btn btn-success me-2">
+
+                Excel
+
+            </a>
+
+            <a asp-action="PurchasesPdf"
+               class="btn btn-danger me-2">
+
+                PDF
+
+            </a>
+
+            <a asp-action="PurchasesWord"
+               class="btn btn-dark">
+
+                Word
+
+            </a>
+
+        </div>
+
+    </div>
+
+    <!-- FILTER -->
+
+    <div class="card shadow-sm mb-4 border-0">
+
+        <div class="card-body">
+
+            <form method="get">
+
+                <div class="row">
+
+                    <div class="col-md-4">
+
+                        <label class="form-label">
+                            Date From
+                        </label>
+
+                        <input type="date"
+                               name="DateFrom"
+                               value="@Model.Filter.DateFrom?.ToString("yyyy-MM-dd")"
+                               class="form-control" />
+
+                    </div>
+
+                    <div class="col-md-4">
+
+                        <label class="form-label">
+                            Date To
+                        </label>
+
+                        <input type="date"
+                               name="DateTo"
+                               value="@Model.Filter.DateTo?.ToString("yyyy-MM-dd")"
+                               class="form-control" />
+
+                    </div>
+
+                    <div class="col-md-4 d-flex align-items-end">
+
+                        <button class="btn btn-primary w-100">
+
+                            Filter
+
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+    <!-- KPI -->
+
+    <div class="row mb-4">
+
+        <div class="col-md-4">
+
+            <div class="card shadow-sm border-0">
+
+                <div class="card-body text-center">
+
+                    <h6 class="text-muted">
+
+                        Total Amount
+
+                    </h6>
+
+                    <h2>
+
+                        @(Model.Purchases.Sum(x => x.Amount))
+
+
+                    </h2>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="col-md-4">
+
+            <div class="card shadow-sm border-0">
+
+                <div class="card-body text-center">
+
+                    <h6 class="text-muted">
+
+                        Total Quantity
+
+                    </h6>
+
+                    <h2>
+
+                        @(Model.Purchases.Sum(x => x.Quantity))
+
+
+                    </h2>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="col-md-4">
+
+            <div class="card shadow-sm border-0">
+
+                <div class="card-body text-center">
+
+                    <h6 class="text-muted">
+
+                        Average Price
+
+                    </h6>
+
+                    <h2>
+                        @(
+                                                Model.Purchases.Sum(x => x.Quantity) > 0
+                                                ?
+                                                (
+                                                Model.Purchases.Sum(x => x.Amount)
+                                                /
+                                                Model.Purchases.Sum(x => x.Quantity)
+                                                ).ToString("0.00")
+                                                :
+                                                "0.00"
+                                                )
+                    </h2>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- TABLE -->
+
+    <div class="card shadow-sm border-0">
+
+        <div class="card-body">
+
+            <table class="table table-bordered table-hover align-middle">
+
+                <thead class="table-light">
+
+                    <tr>
+
+                        <th>
+                            Raw Material
+                        </th>
+
+                        <th>
+                            Employee
+                        </th>
+
+                        <th>
+                            Quantity
+                        </th>
+
+                        <th>
+                            Amount
+                        </th>
+
+                        <th>
+                            Average Price
+                        </th>
+
+                        <th>
+                            Date
+                        </th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody>
+
+                    @foreach (var item in Model.Purchases)
+                    {
+                        decimal avgPrice =
+                        item.Quantity > 0
+                        ? item.Amount / item.Quantity
+                        : 0;
+
+                        <tr>
+
+                            <td>
+
+                                @(item.RawMaterialModel?.Name
+                                                            ?? "No material")
+
+                            </td>
+
+                            <td>
+
+                                @(item.Employees?.Full_Name
+                                                            ?? "No employee")
+
+                        </td>
+
+                            <td>
+
+                                @item.Quantity
+
+                            </td>
+
+                            <td>
+
+                                @item.Amount
+
+                            </td>
+
+                            <td>
+
+                                @avgPrice.ToString("0.00")
+
+                            </td>
+
+                            <td>
+                                @item.Date.ToString("dd.MM.yyyy")
+
+                            </td>
+
+                        </tr>
+                                        }
+
+                </tbody>
+
+                <!-- TOTAL FOOTER -->
+
+                <tfoot class="table-secondary">
+
+                    <tr>
+
+                        <th colspan="2">
+
+                            TOTAL
+
+                        </th>
+
+                        <!-- TOTAL QUANTITY -->
+
+                        <th>
+
+                            @(Model.Purchases.Sum(x => x.Quantity))
+
+                        </th>
+
+                        <!-- TOTAL AMOUNT -->
+
+                        <th>
+
+                            @(Model.Purchases.Sum(x => x.Amount))
+
+                        </th>
+
+                        <!-- EMPTY AVG PRICE -->
+
+                        <th>
+
+                        </th>
+
+                        <!-- RECORDS -->
+
+                        <th>
+
+                            Records:
+                            @Model.Purchases.Count
+
+                        </th>
+
+                    </tr>
+
+                </tfoot>
+
+            </table>
+
+        </div>
+
+    </div>
+
+</div>

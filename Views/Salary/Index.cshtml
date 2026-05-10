@@ -147,8 +147,8 @@
 
 
 
-                            <button id="paySalariesBtn" class="btn btn-primary">
-                                <i class="fas fa-money-bill-wave me-2"></i>Выдать зарплаты
+                        <button type="button" id="paySalariesBtn" class="btn btn-primary">
+                            <i class="fas fa-money-bill-wave me-2"></i>Выдать зарплаты
                             </button>
                         </div>
                     </div>
@@ -178,6 +178,36 @@
         });
         // обновление итого сумму общей зп
         $(document).ready(function () {
+                    $('#paySalariesBtn').on('click', function () {
+
+            const year = $('#yearSelect').val();
+            const month = $('#monthSelect').val();
+
+            console.log("Нажали кнопку"); // проверка
+
+            $.ajax({
+                url: '/Salary/PaySalaries',
+                type: 'POST',
+                data: {
+                    year: year,
+                    month: month
+                },
+                success: function (response) {
+
+                    if (response.success) {
+                        alert(response.message);
+                        location.reload();
+                    }
+                    else {
+                        alert("Ошибка: " + response.message);
+                    }
+                },
+                error: function () {
+                    alert("Ошибка соединения с сервером");
+                }
+            });
+
+        });
             function updateTotalAmount() {
                 let total = 0;
                 $('.salary-input').each(function () {

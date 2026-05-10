@@ -1,0 +1,421 @@
+﻿@* Views/Report/Credit.cshtml *@
+
+@model WebServiceCosmetics.ViewModel.CreditReportVM
+
+<div class="container mt-5">
+
+    <!-- HEADER -->
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+
+        <h1>
+            Credit Analytics Report
+        </h1>
+
+        <a asp-action="Index"
+           class="btn btn-outline-dark">
+
+            Back to Dashboard
+
+        </a>
+
+    </div>
+
+    <!-- FILTER -->
+
+    <div class="card shadow-sm mb-4">
+
+        <div class="card-body">
+
+            <form method="get">
+
+                <div class="row">
+
+                    <div class="col-md-3">
+
+                        <label>
+                            Credit
+                        </label>
+
+                        <select name="CreditId"
+                                class="form-control">
+
+                            <option value="">
+                                All Credits
+                            </option>
+
+                            @foreach (var credit in Model.Credits)
+                            {
+                                <option value="@credit.id">
+
+                                    Credit #@credit.id
+                                    |
+                                    @credit.Amount сом
+
+                                </option>
+                            }
+
+                        </select>
+
+                    </div>
+
+                    <div class="col-md-3">
+
+                        <label>
+                            Date From
+                        </label>
+
+                        <input type="date"
+                               name="DateFrom"
+                               class="form-control" />
+
+                    </div>
+
+                    <div class="col-md-3">
+
+                        <label>
+                            Date To
+                        </label>
+
+                        <input type="date"
+                               name="DateTo"
+                               class="form-control" />
+
+                    </div>
+
+                    <div class="col-md-3 d-flex align-items-end">
+
+                        <button class="btn btn-primary w-100">
+
+                            Filter
+
+                        </button>
+                        <!-- EXPORT BUTTONS -->
+
+                        <div class="mb-4">
+
+                            <a asp-action="CreditExcel"
+                               class="btn btn-success me-2">
+
+                                <i class="bi bi-file-earmark-excel"></i>
+
+                                Excel
+
+                            </a>
+
+                            <a asp-action="CreditPdf"
+                               class="btn btn-danger me-2">
+
+                                <i class="bi bi-file-earmark-pdf"></i>
+
+                                PDF
+
+                            </a>
+
+                            <a asp-action="CreditWord"
+                               class="btn btn-dark">
+
+                                <i class="bi bi-file-earmark-word"></i>
+
+                                Word
+
+                            </a>
+
+                        </div>
+                    </div>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+    <!-- EXPORT -->
+
+    <div class="mb-4">
+
+        <a asp-action="CreditExcel"
+           class="btn btn-success">
+
+            Excel
+
+        </a>
+
+        <a asp-action="CreditPdf"
+           class="btn btn-danger">
+
+            PDF
+
+        </a>
+
+        <a asp-action="CreditWord"
+           class="btn btn-dark">
+
+            Word
+
+        </a>
+
+    </div>
+
+    <!-- KPI -->
+
+    <div class="row mb-4">
+
+        <div class="col-md-3">
+
+            <div class="card shadow-sm p-3 text-center">
+
+                <h6>
+                    Total Credits
+                </h6>
+
+                <h3>
+                    @Model.TotalCredits
+                </h3>
+
+            </div>
+
+        </div>
+
+        <div class="col-md-3">
+
+            <div class="card shadow-sm p-3 text-center">
+
+                <h6>
+                    Remaining Debt
+                </h6>
+
+                <h3>
+                    @Model.TotalRemainingAmount
+                </h3>
+
+            </div>
+
+        </div>
+
+        <div class="col-md-3">
+
+            <div class="card shadow-sm p-3 text-center">
+
+                <h6>
+                    Total Penalties
+                </h6>
+
+                <h3>
+                    @Model.TotalPenalties
+                </h3>
+
+            </div>
+
+        </div>
+
+        <div class="col-md-3">
+
+            <div class="card shadow-sm p-3 text-center">
+
+                <h6>
+                    Total Payments
+                </h6>
+
+                <h3>
+                    @Model.TotalPayments
+                </h3>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- CREDIT TABLE -->
+
+    <div class="card shadow-sm mb-5">
+
+        <div class="card-header">
+
+            Credit Information
+
+        </div>
+
+        <div class="card-body">
+
+            <table class="table table-bordered table-hover">
+
+                <thead class="table-light">
+
+                    <tr>
+
+                        <th>ID</th>
+                        <th>Amount</th>
+                        <th>Interest %</th>
+                        <th>Payment Type</th>
+                        <th>Years</th>
+                        <th>Months</th>
+                        <th>Remaining</th>
+                        <th>Penalties</th>
+                        <th>Start Date</th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody>
+
+                    @foreach (var item in Model.Credits)
+                    {
+                        <tr>
+
+                            <td>
+                                @item.id
+                            </td>
+
+                            <td>
+                                @item.Amount
+                            </td>
+
+                            <td>
+                                @item.AnnualInterestRate
+                            </td>
+
+                            <td>
+                                @item.PaymentType
+                            </td>
+
+                            <td>
+                                @item.Years
+                            </td>
+
+                            <td>
+                                @item.Months
+                            </td>
+
+                            <td>
+                                @(item.RemainingAmount ?? 0)
+                            </td>
+
+                            <td>
+                                @(item.Penalties ?? 0)
+                            </td>
+
+                            <td>
+                                @item.StartDate
+                                .ToString("dd.MM.yyyy")
+                            </td>
+
+                        </tr>
+                    }
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+    <!-- PAYMENTS TABLE -->
+
+    <div class="card shadow-sm">
+
+        <div class="card-header">
+
+            Payment Schedule
+
+        </div>
+
+        <div class="card-body">
+
+            <table class="table table-bordered table-hover">
+
+                <thead class="table-light">
+
+                    <tr>
+
+                        <th>Payment Date</th>
+                        <th>Payment Amount</th>
+                        <th>Interest</th>
+                        <th>Total Amount</th>
+                        <th>Remaining</th>
+                        <th>Penalty</th>
+                        <th>Overdue Days</th>
+                        <th>Status</th>
+                        <th>Final Amount</th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody>
+
+                    @foreach (var item in Model.Payments)
+                    {
+                        <tr>
+
+                            <td>
+                                @item.PaymentDate
+                                .ToString("dd.MM.yyyy")
+                            </td>
+
+                            <td>
+                                @item.PaymentAmount
+                            </td>
+
+                            <td>
+                                @item.Interest
+                            </td>
+
+                            <td>
+                                @item.TotalAmount
+                            </td>
+
+                            <td>
+                                @item.RemainingAmount
+                            </td>
+
+                            <td>
+                                @(item.Penalty ?? 0)
+                            </td>
+
+                            <td>
+                                @(item.OverdueDays ?? 0)
+                            </td>
+
+                            <td>
+
+                                @if (item.IsPaid)
+                                {
+                                    <span class="badge bg-success">
+
+                                        Paid
+
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-danger">
+
+                                        Unpaid
+
+                                    </span>
+                                }
+
+                            </td>
+
+                            <td>
+                                @item.FinalAmount
+                            </td>
+
+                        </tr>
+                    }
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+</div>

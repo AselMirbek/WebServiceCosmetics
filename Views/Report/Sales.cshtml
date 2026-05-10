@@ -1,0 +1,267 @@
+﻿@* Views/Report/Sales.cshtml *@
+
+@model WebServiceCosmetics.ViewModel.SalesReportVM
+
+<div class="container mt-5">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+
+        <h1>
+            Sales Report
+        </h1>
+
+        <a asp-action="Index"
+           class="btn btn-outline-dark">
+
+            Back to Dashboard
+
+        </a>
+
+    </div>
+
+    <!-- FILTER -->
+
+    <div class="card shadow-sm mb-4">
+
+        <div class="card-body">
+
+            <form method="get">
+
+                <div class="row">
+
+                    <div class="col-md-3">
+
+                        <label>
+                            Date From
+                        </label>
+
+                        <input type="date"
+                               name="DateFrom"
+                               value="@Model.Filter.DateFrom?.ToString("yyyy-MM-dd")"
+                               class="form-control" />
+
+                    </div>
+
+                    <div class="col-md-3">
+
+                        <label>
+                            Date To
+                        </label>
+
+                        <input type="date"
+                               name="DateTo"
+                               value="@Model.Filter.DateTo?.ToString("yyyy-MM-dd")"
+                               class="form-control" />
+
+                    </div>
+
+                    <div class="col-md-3">
+
+                        <label>
+                            Employee
+                        </label>
+
+                        <select name="Employees_id"
+                                class="form-control"
+                                asp-items="Model.Employees">
+
+                            <option value="">
+                                All Employees
+                            </option>
+
+                        </select>
+
+                    </div>
+
+                    <div class="col-md-3 d-flex align-items-end">
+
+                        <button class="btn btn-primary w-100">
+
+                            Filter
+
+                        </button>
+                        <div class="mb-4">
+
+                            <a asp-action="SalesExcel"
+                               class="btn btn-success">
+
+                                Excel
+
+                            </a>
+
+                            <a asp-action="SalesPdf"
+                               class="btn btn-danger">
+
+                                PDF
+
+                            </a>
+
+                            <a asp-action="SalesWord"
+                               class="btn btn-dark">
+
+                                Word
+
+                            </a>
+
+                        </div>
+                    </div>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+    <!-- TOTAL -->
+
+    <div class="card shadow-sm mb-4">
+
+        <div class="card-body text-center">
+
+            <h5>
+                Total Sales Amount
+            </h5>
+
+            <h2>
+                @Model.TotalAmount
+            </h2>
+
+        </div>
+
+    </div>
+
+    <!-- TABLE -->
+
+    <div class="card shadow-sm border-0">
+
+        <div class="card-body">
+
+            <table class="table table-bordered table-hover align-middle">
+
+                <thead class="table-light">
+
+                    <tr>
+
+                        <th>
+                            Product
+                        </th>
+
+                        <th>
+                            Quantity
+                        </th>
+
+                        <th>
+                            Amount
+                        </th>
+
+                        <th>
+                            Employee
+                        </th>
+
+                        <th>
+                            Date
+                        </th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody>
+
+                    @foreach (var item in Model.Sales)
+                    {
+                        <tr>
+
+                            <td>
+
+                                @(item.ProductModel?.Name
+                                                            ?? "No product")
+
+                            </td>
+
+                            <td>
+
+                                @item.Quantity
+
+                            </td>
+
+                            <td>
+
+                                @item.Amount
+
+                            </td>
+
+                            <td>
+
+                                @(item.Employees?.Full_Name
+                                                            ?? "No employee")
+
+                        </td>
+
+                            <td>
+
+                                @item.Date
+                                .ToString("dd.MM.yyyy")
+
+                            </td>
+
+                        </tr>
+                                        }
+
+                </tbody>
+
+                <!-- TOTAL FOOTER -->
+
+                <tfoot class="table-secondary">
+
+                    <tr>
+
+                        <th>
+
+                            TOTAL
+
+                        </th>
+
+                        <!-- TOTAL QUANTITY -->
+
+                        <th>
+
+                            @(Model.Sales.Sum(x => x.Quantity))
+
+                        </th>
+
+                        <!-- TOTAL AMOUNT -->
+
+                        <th>
+
+                            @(Model.Sales.Sum(x => x.Amount))
+
+                        </th>
+
+                        <!-- EMPTY -->
+
+                        <th>
+
+                        </th>
+
+                        <!-- RECORDS -->
+
+                        <th>
+
+                            Records:
+                            @Model.Sales.Count
+
+                        </th>
+
+                    </tr>
+
+                </tfoot>
+
+            </table>
+
+        </div>
+
+    </div>
+

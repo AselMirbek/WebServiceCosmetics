@@ -1,33 +1,23 @@
-﻿ using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using WebServiceCosmetics.Data; // Твой контекст
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
-using ClosedXML.Excel;
-using System.IO;
-using ClosedXML.Excel;
+﻿// Controllers/ReportController.cs
 
-using PdfSharpCore.Pdf;
-using PdfSharpCore.Drawing;
-
-using DocumentFormat.OpenXml.Packaging;
-using DocumentFormat.OpenXml.Wordprocessing;
-using System.IO;
-using Paragraph = DocumentFormat.OpenXml.Wordprocessing.Paragraph;
-using Run = DocumentFormat.OpenXml.Wordprocessing.Run;
-using Text = DocumentFormat.OpenXml.Wordprocessing.Text;
-using PdfSharpCore.Pdf;
-using PdfSharpCore.Drawing;
-using DocumentFormat.OpenXml.Packaging;
-using DocumentFormat.OpenXml.Wordprocessing;
+using System.Globalization;
+using ClosedXML.Excel;
 using DocumentFormat.OpenXml;
-using DocumentFormat.OpenXml.Spreadsheet;
+using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
-using Word = DocumentFormat.OpenXml.Wordprocessing;
-using Drawing = DocumentFormat.OpenXml.Drawing;
-
-public class ReportController : Controller
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.EntityFrameworkCore;
+using PdfSharpCore.Drawing;
+using PdfSharpCore.Pdf;
+using WebServiceCosmetics.Data;
+using WebServiceCosmetics.ViewModel;
+using WebServiceCosmetics.ViewModel;
+namespace WebServiceCosmetics.Controllers
+{
+    [Authorize]
+    public class ReportController : Controller
     {
         private readonly ApplicationDbContext _context;
 
@@ -35,531 +25,2590 @@ public class ReportController : Controller
         {
             _context = context;
         }
-    public async Task<IActionResult> Index()
-    {
-       
-        return View();
 
-    }
-    private static TableCell CreateStyledCell(string text, bool isHeader = false)
-    {
-        var runProps = new Drawing.RunProperties();
-        if (isHeader)
-          new Word.Bold();
+        // =====================================================
+        // DASHBOARD
+        // =====================================================
 
-        var paragraph = new Paragraph(
-            new Run(runProps, new Text(text ?? ""))
-        )
+        public async Task<IActionResult> Index()
         {
-            ParagraphProperties = new ParagraphProperties(new Justification { Val = JustificationValues.Left })
-        };
-
-        var cellProps = new TableCellProperties(
-            new TableCellWidth { Type = TableWidthUnitValues.Auto }
-        );
-
-        return new TableCell(cellProps, paragraph);
-    }
-
-    // Экспорт отчёта о производстве продуктов в Word
-    public IActionResult ExportProductManufacturingToWord()
-    {
-        var productions = _context.Product_Manufacturing
-            .Include(p => p.ProductModel)
-            .Include(p => p.Employees)
-            .ToList();
-
-        using var ms = new MemoryStream();
-        using (var wordDoc = WordprocessingDocument.Create(ms, DocumentFormat.OpenXml.WordprocessingDocumentType.Document, true))
-        {
-            var mainPart = wordDoc.AddMainDocumentPart();
-            mainPart.Document = new Document();
-            var body = mainPart.Document.AppendChild(new Body());
-
-            // Заголовок
-            var heading = new Paragraph(new Run(new Text("Отчет о производстве продуктов")))
+            var vm = new ReportDashboardVM
             {
-                ParagraphProperties = new ParagraphProperties(new Justification() { Val = JustificationValues.Center })
+                TotalRevenue = await _context.Product_Sales
+                    .SumAsync(x => (decimal?)x.Amount) ?? 0,
+
+                TotalSales =
+                    await _context.Product_Sales
+                        .CountAsync(),
+
+                TotalManufacturing =
+                    await _context.Product_Manufacturing
+                        .CountAsync(),
+
+                TotalPurchases =
+                    await _context.Raw_Materials_Purchase
+                        .CountAsync(),
+
+                TotalSalary =
+                    await _context.Salary
+                        .SumAsync(x =>
+                            (decimal?)x.General) ?? 0,
+
+                TotalCredits =
+                    await _context.Credit
+                        .SumAsync(x =>
+                            (decimal?)x.Amount) ?? 0
             };
-            body.AppendChild(heading);
 
-            // Создаём таблицу
-            var table = new DocumentFormat.OpenXml.Wordprocessing.Table();
+            return View(vm);
+        }
 
-            // Заголовок таблицы
-            var headerRow = new TableRow();
-            headerRow.Append(
-                CreateTableCell("Продукт", true),
-                CreateTableCell("Сотрудник", true),
-                CreateTableCell("Количество", true),
-                CreateTableCell("Дата", true)
-            );
-            table.AppendChild(headerRow);
+        // =====================================================
+        // SALES REPORT
+        // =====================================================
 
-            // Данные
-            foreach (var item in productions)
+        public async Task<IActionResult>
+            Sales(ReportFilterVM filter)
+        {
+            var sales = _context.Product_Sales
+                .Include(x => x.ProductModel)
+                .Include(x => x.Employees)
+                .AsQueryable();
+
+            // FILTER DATE FROM
+
+            if (filter.DateFrom.HasValue)
             {
-                var row = new TableRow();
-                row.Append(
-                    CreateTableCell(item.ProductModel?.Name ?? ""),
-                    CreateTableCell(item.Employees?.Full_Name ?? ""),
-                    CreateTableCell(item.Quantity.ToString()),
-                    CreateTableCell(item.Date.ToShortDateString())
-                );
-                table.AppendChild(row);
+                sales = sales.Where(x =>
+                    x.Date >= filter.DateFrom.Value);
             }
 
-            body.AppendChild(table);
-            mainPart.Document.Save();
-        }
+            // FILTER DATE TO
 
-        return File(ms.ToArray(), "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "ProductManufacturingReport.docx");
-    }
-
-    // Экспорт отчёта о производстве продуктов в Excel
-    public IActionResult ExportProductManufacturingToExcel()
-    {
-        var productions = _context.Product_Manufacturing
-            .Include(p => p.ProductModel)
-            .Include(p => p.Employees)
-            .ToList();
-
-        using var workbook = new XLWorkbook();
-        var worksheet = workbook.Worksheets.Add("Производство");
-
-        // Заголовки
-        worksheet.Cell(1, 1).Value = "Продукт";
-        worksheet.Cell(1, 2).Value = "Сотрудник";
-        worksheet.Cell(1, 3).Value = "Количество";
-        worksheet.Cell(1, 4).Value = "Дата";
-
-        int row = 2;
-        foreach (var item in productions)
-        {
-            worksheet.Cell(row, 1).Value = item.ProductModel?.Name ?? "";
-            worksheet.Cell(row, 2).Value = item.Employees?.Full_Name ?? "";
-            worksheet.Cell(row, 3).Value = item.Quantity;
-            worksheet.Cell(row, 4).Value = item.Date.ToShortDateString();
-            row++;
-        }
-
-        using var ms = new MemoryStream();
-        workbook.SaveAs(ms);
-
-        return File(ms.ToArray(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "ProductManufacturingReport.xlsx");
-    }
-
-    // Экспорт отчёта о производстве продуктов в PDF
-    public IActionResult ExportProductManufacturingToPdf()
-    {
-        var productions = _context.Product_Manufacturing
-            .Include(p => p.ProductModel)
-            .Include(p => p.Employees)
-            .ToList();
-
-        using var ms = new MemoryStream();
-        var document = new PdfDocument();
-        var page = document.AddPage();
-        var gfx = XGraphics.FromPdfPage(page);
-        var font = new XFont("Verdana", 12, XFontStyle.Regular);
-
-        double yPoint = 40;
-
-        // Заголовок
-        gfx.DrawString("Отчет о производстве продуктов", new XFont("Verdana", 14, XFontStyle.Bold), XBrushes.Black,
-            new XRect(0, yPoint, page.Width, page.Height), XStringFormats.TopCenter);
-        yPoint += 40;
-
-        // Заголовки таблицы
-        gfx.DrawString("Продукт", font, XBrushes.Black, new XRect(40, yPoint, 100, page.Height), XStringFormats.TopLeft);
-        gfx.DrawString("Сотрудник", font, XBrushes.Black, new XRect(150, yPoint, 100, page.Height), XStringFormats.TopLeft);
-        gfx.DrawString("Количество", font, XBrushes.Black, new XRect(260, yPoint, 100, page.Height), XStringFormats.TopLeft);
-        gfx.DrawString("Дата", font, XBrushes.Black, new XRect(370, yPoint, 100, page.Height), XStringFormats.TopLeft);
-        yPoint += 25;
-
-        foreach (var item in productions)
-        {
-            gfx.DrawString(item.ProductModel?.Name ?? "", font, XBrushes.Black, new XRect(40, yPoint, 100, page.Height), XStringFormats.TopLeft);
-            gfx.DrawString(item.Employees?.Full_Name ?? "", font, XBrushes.Black, new XRect(150, yPoint, 100, page.Height), XStringFormats.TopLeft);
-            gfx.DrawString(item.Quantity.ToString(), font, XBrushes.Black, new XRect(260, yPoint, 100, page.Height), XStringFormats.TopLeft);
-            gfx.DrawString(item.Date.ToShortDateString(), font, XBrushes.Black, new XRect(370, yPoint, 100, page.Height), XStringFormats.TopLeft);
-            yPoint += 20;
-
-            if (yPoint > page.Height - 40)
+            if (filter.DateTo.HasValue)
             {
-                page = document.AddPage();
-                gfx = XGraphics.FromPdfPage(page);
-                yPoint = 40;
+                sales = sales.Where(x =>
+                    x.Date <= filter.DateTo.Value);
             }
-        }
 
-        document.Save(ms);
-        return File(ms.ToArray(), "application/pdf", "ProductManufacturingReport.pdf");
-    }
+            // FILTER EMPLOYEE
 
-    // Вспомогательный метод для создания ячейки Word таблицы
-    private TableCell CreateTableCell(string text, bool isBold = false)
-    {
-        var run = new Run(new Text(text));
-        if (isBold)
-            run.RunProperties = new Word.RunProperties(new Word.Bold());
-
-        var paragraph = new Paragraph(run);
-        var tableCell = new TableCell(paragraph);
-        return tableCell;
-    }
-
-    // Отчёт по продажам — экспорт в PDF
-    public IActionResult ExportProductSalesToPdf()
-        {
-            var salesData = _context.Product_Sales
-                                    .Include(p => p.ProductModel)
-                                    .Include(p => p.Employees)
-                                    .ToList();
-
-            var pdfDocument = new PdfDocument();
-            var page = pdfDocument.AddPage();
-            var graphics = XGraphics.FromPdfPage(page);
-            var font = new XFont("Arial", 12);
-
-            graphics.DrawString("Отчёт по продажам", font, XBrushes.Black, 20, 30);
-
-            int yPosition = 60;
-            foreach (var sale in salesData)
+            if (filter.Employees_id.HasValue)
             {
-                string row = $"{sale.ProductModel.Name} - {sale.Employees.Full_Name} - {sale.Quantity} - {sale.Amount} - {sale.Date.ToShortDateString()}";
-                graphics.DrawString(row, font, XBrushes.Black, 20, yPosition);
-                yPosition += 20;
+                sales = sales.Where(x =>
+                    x.Employees_id ==
+                    filter.Employees_id.Value);
+            }
 
-                if (yPosition > page.Height - 40) // новая страница
+            var vm = new SalesReportVM
+            {
+                Sales = await sales
+                    .OrderByDescending(x => x.Date)
+                    .ToListAsync(),
+
+                Employees = await _context.Employees
+                    .Select(x => new SelectListItem
+                    {
+                        Text = x.Full_Name,
+                        Value = x.Id.ToString()
+                    })
+                    .ToListAsync(),
+
+                Filter = filter
+            };
+
+            return View(vm);
+        }
+        // =====================================================
+        // SALES PDF
+        // =====================================================
+
+        public async Task<IActionResult>
+            SalesPdf()
+        {
+            var sales = await _context.Product_Sales
+                .Include(x => x.ProductModel)
+                .Include(x => x.Employees)
+                .OrderByDescending(x => x.Date)
+                .ToListAsync();
+
+            PdfDocument document =
+                new PdfDocument();
+
+            document.Info.Title =
+                "Sales Report";
+
+            PdfPage page =
+                document.AddPage();
+
+            XGraphics gfx =
+                XGraphics.FromPdfPage(page);
+
+            XFont titleFont =
+                new XFont("Verdana", 18);
+
+            XFont headerFont =
+                new XFont("Verdana", 10,
+                    XFontStyle.Bold);
+
+            XFont font =
+                new XFont("Verdana", 9);
+
+            // TITLE
+
+            gfx.DrawString(
+                "Sales Report",
+                titleFont,
+                XBrushes.Black,
+                new XRect(0, 20,
+                    page.Width,
+                    page.Height),
+                XStringFormats.TopCenter);
+
+            int y = 70;
+
+            // TABLE HEADER
+
+            gfx.DrawRectangle(
+                XPens.Black,
+                20, y, 550, 25);
+
+            gfx.DrawString(
+                "Product",
+                headerFont,
+                XBrushes.Black,
+                new XPoint(25, y + 15));
+
+            gfx.DrawString(
+                "Employee",
+                headerFont,
+                XBrushes.Black,
+                new XPoint(160, y + 15));
+
+            gfx.DrawString(
+                "Qty",
+                headerFont,
+                XBrushes.Black,
+                new XPoint(300, y + 15));
+
+            gfx.DrawString(
+                "Amount",
+                headerFont,
+                XBrushes.Black,
+                new XPoint(370, y + 15));
+
+            gfx.DrawString(
+                "Date",
+                headerFont,
+                XBrushes.Black,
+                new XPoint(470, y + 15));
+
+            y += 25;
+
+            // DATA
+
+            foreach (var item in sales)
+            {
+                gfx.DrawRectangle(
+                    XPens.Black,
+                    20, y, 550, 25);
+
+                gfx.DrawString(
+                    item.ProductModel?.Name ??
+                    "No product",
+                    font,
+                    XBrushes.Black,
+                    new XPoint(25, y + 15));
+
+                gfx.DrawString(
+                    item.Employees?.Full_Name ??
+                    "No employee",
+                    font,
+                    XBrushes.Black,
+                    new XPoint(160, y + 15));
+
+                gfx.DrawString(
+                    item.Quantity.ToString(),
+                    font,
+                    XBrushes.Black,
+                    new XPoint(300, y + 15));
+
+                gfx.DrawString(
+                    item.Amount.ToString(),
+                    font,
+                    XBrushes.Black,
+                    new XPoint(370, y + 15));
+
+                gfx.DrawString(
+                    item.Date
+                        .ToString("dd.MM.yyyy"),
+                    font,
+                    XBrushes.Black,
+                    new XPoint(470, y + 15));
+
+                y += 25;
+
+                // NEW PAGE
+
+                if (y > 750)
                 {
-                    page = pdfDocument.AddPage();
-                    graphics = XGraphics.FromPdfPage(page);
-                    yPosition = 40;
+                    page = document.AddPage();
+
+                    gfx = XGraphics
+                        .FromPdfPage(page);
+
+                    y = 40;
                 }
             }
+            // TOTALS
 
-            using var ms = new MemoryStream();
-            pdfDocument.Save(ms);
-            return File(ms.ToArray(), "application/pdf", "SalesReport.pdf");
+            decimal totalQuantity =
+                sales.Sum(x => x.Quantity);
+
+            decimal totalAmount =
+                sales.Sum(x => x.Amount);
+
+            y += 20;
+
+            gfx.DrawRectangle(
+                XPens.Black,
+                20, y, 550, 30);
+
+            gfx.DrawString(
+                "TOTAL",
+                headerFont,
+                XBrushes.Black,
+                new XPoint(160, y + 18));
+
+            gfx.DrawString(
+                totalQuantity.ToString(),
+                headerFont,
+                XBrushes.Black,
+                new XPoint(300, y + 18));
+
+            gfx.DrawString(
+                totalAmount.ToString(),
+                headerFont,
+                XBrushes.Black,
+                new XPoint(370, y + 18));
+            using var stream = new MemoryStream();
+
+            document.Save(stream);
+
+            return File(
+                stream.ToArray(),
+                "application/pdf",
+                "SalesReport.pdf");
+        }
+        // =====================================================
+        // SALES WORD
+        // =====================================================
+
+        public async Task<IActionResult>
+            SalesWord()
+        {
+            var sales = await _context.Product_Sales
+                .Include(x => x.ProductModel)
+                .Include(x => x.Employees)
+                .OrderByDescending(x => x.Date)
+                .ToListAsync();
+
+            using var stream = new MemoryStream();
+
+            using (WordprocessingDocument doc =
+                   WordprocessingDocument.Create(
+                       stream,
+                       DocumentFormat.OpenXml
+                           .WordprocessingDocumentType
+                           .Document,
+                       true))
+            {
+                MainDocumentPart mainPart =
+                    doc.AddMainDocumentPart();
+
+                mainPart.Document =
+                    new Document();
+
+                Body body = new Body();
+
+                // TITLE
+
+                body.Append(
+                    new Paragraph(
+                        new Run(
+                            new Text(
+                                "Sales Report"))));
+
+                // TABLE
+
+                Table table = new Table();
+
+                // HEADER
+
+                TableRow header =
+                    new TableRow();
+
+                header.Append(CreateCell("Product"));
+                header.Append(CreateCell("Employee"));
+                header.Append(CreateCell("Quantity"));
+                header.Append(CreateCell("Amount"));
+                header.Append(CreateCell("Date"));
+
+                table.Append(header);
+
+                // DATA
+
+                foreach (var item in sales)
+                {
+                    TableRow row =
+                        new TableRow();
+
+                    row.Append(
+                        CreateCell(
+                            item.ProductModel?.Name ??
+                            "No product"));
+
+                    row.Append(
+                        CreateCell(
+                            item.Employees?.Full_Name ??
+                            "No employee"));
+
+                    row.Append(
+                        CreateCell(
+                            item.Quantity.ToString()));
+
+                    row.Append(
+                        CreateCell(
+                            item.Amount.ToString()));
+
+                    row.Append(
+                        CreateCell(
+                            item.Date
+                                .ToString("dd.MM.yyyy")));
+
+                    table.Append(row);
+                }
+                // TOTALS
+
+                decimal totalQuantity =
+                    sales.Sum(x => x.Quantity);
+
+                decimal totalAmount =
+                    sales.Sum(x => x.Amount);
+
+                TableRow totalRow =
+                    new TableRow();
+
+                totalRow.Append(
+                    CreateCell(""));
+
+                totalRow.Append(
+                    CreateCell("TOTAL"));
+
+                totalRow.Append(
+                    CreateCell(
+                        totalQuantity.ToString()));
+
+                totalRow.Append(
+                    CreateCell(
+                        totalAmount.ToString()));
+
+                totalRow.Append(
+                    CreateCell(""));
+
+                table.Append(totalRow);
+
+                body.Append(table);
+
+                mainPart.Document.Append(body);
+
+                mainPart.Document.Save();
+            }
+
+            return File(
+                stream.ToArray(),
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                "SalesReport.docx");
         }
 
-        // Отчёт по продажам — экспорт в Excel
-        public IActionResult ExportProductSalesToExcel()
+        // =====================================================
+        // WORD HELPER
+        // =====================================================
+
+        private TableCell CreateCell(string text)
         {
-            var salesData = _context.Product_Sales
-                                    .Include(p => p.ProductModel)
-                                    .Include(p => p.Employees)
-                                    .ToList();
+            return new TableCell(
+                new Paragraph(
+                    new Run(
+                        new Text(text))));
+        }
+        // =====================================================
+        // SALES EXCEL
+        // =====================================================
+
+        public async Task<IActionResult>
+            SalesExcel()
+        {
+            var sales = await _context.Product_Sales
+                .Include(x => x.ProductModel)
+                .Include(x => x.Employees)
+                .OrderByDescending(x => x.Date)
+                .ToListAsync();
 
             using var workbook = new XLWorkbook();
-            var worksheet = workbook.Worksheets.Add("Продажи");
 
-            worksheet.Cell(1, 1).Value = "Продукт";
-            worksheet.Cell(1, 2).Value = "Сотрудник";
-            worksheet.Cell(1, 3).Value = "Количество";
-            worksheet.Cell(1, 4).Value = "Сумма";
-            worksheet.Cell(1, 5).Value = "Дата";
+            var sheet = workbook.Worksheets
+                .Add("Sales");
+
+            // HEADERS
+
+            sheet.Cell(1, 1).Value = "Product";
+            sheet.Cell(1, 2).Value = "Employee";
+            sheet.Cell(1, 3).Value = "Quantity";
+            sheet.Cell(1, 4).Value = "Amount";
+            sheet.Cell(1, 5).Value = "Date";
+
+            // STYLE HEADER
+
+            var headerRange =
+                sheet.Range("A1:E1");
+
+            headerRange.Style.Font.Bold = true;
 
             int row = 2;
-            foreach (var sale in salesData)
+
+            foreach (var item in sales)
             {
-                worksheet.Cell(row, 1).Value = sale.ProductModel.Name;
-                worksheet.Cell(row, 2).Value = sale.Employees.Full_Name;
-                worksheet.Cell(row, 3).Value = sale.Quantity;
-                worksheet.Cell(row, 4).Value = sale.Amount;
-                worksheet.Cell(row, 5).Value = sale.Date.ToShortDateString();
+                sheet.Cell(row, 1).Value =
+                    item.ProductModel?.Name ??
+                    "No product";
+
+                sheet.Cell(row, 2).Value =
+                    item.Employees?.Full_Name ??
+                    "No employee";
+
+                sheet.Cell(row, 3).Value =
+                    item.Quantity;
+
+                sheet.Cell(row, 4).Value =
+                    item.Amount;
+
+                sheet.Cell(row, 5).Value =
+                    item.Date.ToString("dd.MM.yyyy");
+
+                row++;
+            }
+            // TOTALS
+
+            decimal totalQuantity =
+                sales.Sum(x => x.Quantity);
+
+            decimal totalAmount =
+                sales.Sum(x => x.Amount);
+
+            sheet.Cell(row + 1, 2).Value =
+                "TOTAL";
+
+            sheet.Cell(row + 1, 3).Value =
+                totalQuantity;
+
+            sheet.Cell(row + 1, 4).Value =
+                totalAmount;
+
+            // STYLE TOTAL ROW
+
+            var totalRange =
+                sheet.Range($"B{row + 1}:D{row + 1}");
+
+            totalRange.Style.Font.Bold = true;
+
+            // TABLE STYLE
+
+            sheet.Columns().AdjustToContents();
+
+            sheet.RangeUsed().Style.Border
+                .OutsideBorder =
+                    XLBorderStyleValues.Thin;
+
+            sheet.RangeUsed().Style.Border
+                .InsideBorder =
+                    XLBorderStyleValues.Thin;
+      
+
+            using var stream = new MemoryStream();
+
+            workbook.SaveAs(stream);
+
+            return File(
+                stream.ToArray(),
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                "SalesReport.xlsx");
+        }
+        // =====================================================
+        // MANUFACTURING REPORT
+        // =====================================================
+
+        public async Task<IActionResult>
+            Manufacturing(ReportFilterVM filter)
+        {
+            var manufacturing =
+                _context.Product_Manufacturing
+                    .Include(x => x.ProductModel)
+                    .Include(x => x.Employees)
+                    .AsQueryable();
+
+            if (filter.DateFrom.HasValue)
+            {
+                manufacturing = manufacturing.Where(x =>
+                    x.Date >= filter.DateFrom.Value);
+            }
+
+            if (filter.DateTo.HasValue)
+            {
+                manufacturing = manufacturing.Where(x =>
+                    x.Date <= filter.DateTo.Value);
+            }
+
+            if (filter.Employees_id.HasValue)
+            {
+                manufacturing = manufacturing.Where(x =>
+                    x.Employees_id ==
+                    filter.Employees_id.Value);
+            }
+
+            var vm = new ManufacturingReportVM
+            {
+                Manufacturing = await manufacturing
+                    .OrderByDescending(x => x.Date)
+                    .ToListAsync(),
+
+                Employees = await _context.Employees
+                    .Select(x => new SelectListItem
+                    {
+                        Text = x.Full_Name,
+                        Value = x.Id.ToString()
+                    })
+                    .ToListAsync(),
+
+                Filter = filter
+            };
+
+            return View(vm);
+        }
+        // =====================================================
+        // MANUFACTURING EXCEL
+        // =====================================================
+
+        public async Task<IActionResult>
+            ManufacturingExcel()
+        {
+            var manufacturing =
+                await _context.Product_Manufacturing
+                    .Include(x => x.ProductModel)
+                    .Include(x => x.Employees)
+                    .OrderByDescending(x => x.Date)
+                    .ToListAsync();
+
+            using var workbook = new XLWorkbook();
+
+            var sheet = workbook.Worksheets
+                .Add("Manufacturing");
+
+            // HEADERS
+
+            sheet.Cell(1, 1).Value = "Product";
+            sheet.Cell(1, 2).Value = "Employee";
+            sheet.Cell(1, 3).Value = "Quantity";
+            sheet.Cell(1, 4).Value = "Date";
+
+            // DATA
+
+            int row = 2;
+
+            foreach (var item in manufacturing)
+            {
+                sheet.Cell(row, 1).Value =
+                    item.ProductModel?.Name ??
+                    "No product";
+
+                sheet.Cell(row, 2).Value =
+                    item.Employees?.Full_Name ??
+                    "No employee";
+
+                sheet.Cell(row, 3).Value =
+                    item.Quantity;
+
+                sheet.Cell(row, 4).Value =
+                    item.Date.ToString("dd.MM.yyyy");
+
                 row++;
             }
 
+            // STYLE
+
+            sheet.Columns().AdjustToContents();
+
+            sheet.RangeUsed().Style.Border
+                .OutsideBorder =
+                    XLBorderStyleValues.Thin;
+
             using var stream = new MemoryStream();
+
             workbook.SaveAs(stream);
-            return File(stream.ToArray(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "SalesReport.xlsx");
+
+            return File(
+                stream.ToArray(),
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                "ManufacturingReport.xlsx");
         }
+        // =====================================================
+        // MANUFACTURING PDF
+        // =====================================================
 
-        // Отчёт по продажам — экспорт в Word
-        public IActionResult ExportProductSalesToWord()
+        public async Task<IActionResult>
+            ManufacturingPdf()
         {
-            var salesData = _context.Product_Sales
-                                    .Include(p => p.ProductModel)
-                                    .Include(p => p.Employees)
-                                    .ToList();
+            var manufacturing =
+                await _context.Product_Manufacturing
+                    .Include(x => x.ProductModel)
+                    .Include(x => x.Employees)
+                    .OrderByDescending(x => x.Date)
+                    .ToListAsync();
 
-            using var mem = new MemoryStream();
-            using (var wordDoc = WordprocessingDocument.Create(mem, DocumentFormat.OpenXml.WordprocessingDocumentType.Document, true))
+            PdfDocument document =
+                new PdfDocument();
+
+            document.Info.Title =
+                "Manufacturing Report";
+
+            PdfPage page =
+                document.AddPage();
+
+            XGraphics gfx =
+                XGraphics.FromPdfPage(page);
+
+            XFont titleFont =
+                new XFont("Verdana", 18);
+
+            XFont font =
+                new XFont("Verdana", 10);
+
+            // TITLE
+
+            gfx.DrawString(
+                "Manufacturing Report",
+                titleFont,
+                XBrushes.Black,
+                new XRect(0, 20,
+                    page.Width,
+                    page.Height),
+                XStringFormats.TopCenter);
+
+            // TABLE
+
+            int y = 70;
+
+            foreach (var item in manufacturing)
             {
-                var mainPart = wordDoc.AddMainDocumentPart();
-                mainPart.Document = new Document();
-                var body = mainPart.Document.AppendChild(new Body());
+                string line =
+                    $"{item.ProductModel?.Name} | " +
+                    $"{item.Employees?.Full_Name} | " +
+                    $"Qty: {item.Quantity}";
 
-                body.Append(new Paragraph(new Run(new Text("Отчёт по продажам")))
-                {
-                    ParagraphProperties = new ParagraphProperties(new Justification() { Val = JustificationValues.Center })
-                });
+                gfx.DrawString(
+                    line,
+                    font,
+                    XBrushes.Black,
+                    new XPoint(40, y));
 
-                foreach (var sale in salesData)
+                y += 20;
+
+                // NEW PAGE
+
+                if (y > 750)
                 {
-                    var line = $"{sale.Date.ToShortDateString()} | {sale.ProductModel.Name} | {sale.Employees.Full_Name} | {sale.Quantity} | {sale.Amount}";
-                    body.Append(new Paragraph(new Run(new Text(line))));
+                    page = document.AddPage();
+
+                    gfx = XGraphics
+                        .FromPdfPage(page);
+
+                    y = 40;
                 }
             }
 
-            return File(mem.ToArray(), "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "SalesReport.docx");
+            using var stream = new MemoryStream();
+
+            document.Save(stream);
+
+            return File(
+                stream.ToArray(),
+                "application/pdf",
+                "ManufacturingReport.pdf");
         }
-    // Экспорт RawMaterialPurchase в Word
-    [HttpGet]
-    public IActionResult ExportRawMaterialPurchaseToWord()
-    {
-        using var stream = new MemoryStream();
+        // =====================================================
+        // MANUFACTURING WORD
+        // =====================================================
 
-        using (var wordDoc = WordprocessingDocument.Create(stream, WordprocessingDocumentType.Document, true))
+        public async Task<IActionResult>
+            ManufacturingWord()
         {
-            var mainPart = wordDoc.AddMainDocumentPart();
-            mainPart.Document = new Document();
-            var body = mainPart.Document.AppendChild(new Body());
+            var manufacturing =
+                await _context.Product_Manufacturing
+                    .Include(x => x.ProductModel)
+                    .Include(x => x.Employees)
+                    .OrderByDescending(x => x.Date)
+                    .ToListAsync();
 
-            var purchases = _context.Raw_Materials_Purchase
-                .Include(r => r.RawMaterialModel)
-                .Include(r => r.Employees)
-                .ToList();
+            using var stream = new MemoryStream();
 
-            foreach (var purchase in purchases)
+            using (WordprocessingDocument doc =
+                   WordprocessingDocument.Create(
+                       stream,
+                       DocumentFormat.OpenXml
+                           .WordprocessingDocumentType
+                           .Document,
+                       true))
             {
-                var para = new Paragraph(
-                    new Run(
-                        new Text($"ID: {purchase.Id}, Материал: {purchase.RawMaterialModel?.Name}, Кол-во: {purchase.Quantity}, Сумма: {purchase.Amount}, Сотрудник: {purchase.Employees?.Full_Name}")
-                    )
-                );
-                body.AppendChild(para);
+                MainDocumentPart mainPart =
+                    doc.AddMainDocumentPart();
+
+                mainPart.Document =
+                    new Document();
+
+                Body body = new Body();
+
+                // TITLE
+
+                body.Append(
+                    new Paragraph(
+                        new Run(
+                            new Text(
+                                "Manufacturing Report"))));
+
+                // TABLE
+
+                Table table = new Table();
+
+                // HEADER
+
+                TableRow header =
+                    new TableRow();
+
+                header.Append(
+                    new TableCell(
+                        new Paragraph(
+                            new Run(
+                                new Text("Product")))));
+
+                header.Append(
+                    new TableCell(
+                        new Paragraph(
+                            new Run(
+                                new Text("Employee")))));
+
+                header.Append(
+                    new TableCell(
+                        new Paragraph(
+                            new Run(
+                                new Text("Quantity")))));
+
+                header.Append(
+                    new TableCell(
+                        new Paragraph(
+                            new Run(
+                                new Text("Date")))));
+
+                table.Append(header);
+
+                // DATA
+
+                foreach (var item in manufacturing)
+                {
+                    TableRow row =
+                        new TableRow();
+
+                    row.Append(
+                        new TableCell(
+                            new Paragraph(
+                                new Run(
+                                    new Text(
+                                        item.ProductModel?.Name ??
+                                        "No product")))));
+
+                    row.Append(
+                        new TableCell(
+                            new Paragraph(
+                                new Run(
+                                    new Text(
+                                        item.Employees?.Full_Name ??
+                                        "No employee")))));
+
+                    row.Append(
+                        new TableCell(
+                            new Paragraph(
+                                new Run(
+                                    new Text(
+                                        item.Quantity.ToString())))));
+
+                    row.Append(
+                        new TableCell(
+                            new Paragraph(
+                                new Run(
+                                    new Text(
+                                        item.Date
+                                            .ToString("dd.MM.yyyy"))))));
+
+                    table.Append(row);
+                }
+
+                body.Append(table);
+
+                mainPart.Document.Append(body);
+
+                mainPart.Document.Save();
             }
 
-            mainPart.Document.Save();
+            return File(
+                stream.ToArray(),
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                "ManufacturingReport.docx");
         }
+        // =====================================================
+        // PURCHASES REPORT
+        // =====================================================
 
-        stream.Position = 0;
-        return File(stream.ToArray(), "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "RawMaterialPurchases.docx");
-    }
-
-    // Экспорт RawMaterialPurchase в Excel
-    [HttpGet]
-    public IActionResult ExportRawMaterialPurchaseToExcel()
-    {
-        using var stream = new MemoryStream();
-        using (var spreadsheetDoc = SpreadsheetDocument.Create(stream, SpreadsheetDocumentType.Workbook))
+        public async Task<IActionResult>
+            Purchases(ReportFilterVM filter)
         {
-            var workbookPart = spreadsheetDoc.AddWorkbookPart();
-            workbookPart.Workbook = new DocumentFormat.OpenXml.Spreadsheet.Workbook();
+            var purchases =
+                _context.Raw_Materials_Purchase
+                    .Include(x => x.RawMaterialModel)
+                    .Include(x => x.Employees)
+                    .AsQueryable();
 
-            var worksheetPart = workbookPart.AddNewPart<WorksheetPart>();
-            var sheetData = new DocumentFormat.OpenXml.Spreadsheet.SheetData();
-            worksheetPart.Worksheet = new DocumentFormat.OpenXml.Spreadsheet.Worksheet(sheetData);
-
-            var sheets = spreadsheetDoc.WorkbookPart.Workbook.AppendChild(new DocumentFormat.OpenXml.Spreadsheet.Sheets());
-            var sheet = new DocumentFormat.OpenXml.Spreadsheet.Sheet()
+            if (filter.DateFrom.HasValue)
             {
-                Id = spreadsheetDoc.WorkbookPart.GetIdOfPart(worksheetPart),
-                SheetId = 1,
-                Name = "Закупки"
+                purchases = purchases.Where(x =>
+                    x.Date >= filter.DateFrom.Value);
+            }
+
+            if (filter.DateTo.HasValue)
+            {
+                purchases = purchases.Where(x =>
+                    x.Date <= filter.DateTo.Value);
+            }
+
+            if (filter.Employees_id.HasValue)
+            {
+                purchases = purchases.Where(x =>
+                    x.Employees_id ==
+                    filter.Employees_id.Value);
+            }
+
+            var vm = new PurchaseReportVM
+            {
+                Purchases = await purchases
+                    .OrderByDescending(x => x.Date)
+                    .ToListAsync(),
+
+                Filter = filter
             };
-            sheets.Append(sheet);
 
-            // Заголовки
-            var headerRow = new DocumentFormat.OpenXml.Spreadsheet.Row();
-            headerRow.Append(
-                CreateCell("ID"),
-                CreateCell("Материал"),
-                CreateCell("Количество"),
-                CreateCell("Сумма"),
-                CreateCell("Сотрудник")
-            );
-            sheetData.AppendChild(headerRow);
+            return View(vm);
+        }
+        // =====================================================
+        // PURCHASES WORD
+        // =====================================================
 
-            // Данные
-            var purchases = _context.Raw_Materials_Purchase
-                .Include(r => r.RawMaterialModel)
-                .Include(r => r.Employees)
-                .ToList();
+        public async Task<IActionResult>
+            PurchasesWord()
+        {
+            var purchases =
+                await _context.Raw_Materials_Purchase
+                    .Include(x => x.RawMaterialModel)
+                    .Include(x => x.Employees)
+                    .OrderByDescending(x => x.Date)
+                    .ToListAsync();
 
-            foreach (var purchase in purchases)
+            using var stream = new MemoryStream();
+
+            using (WordprocessingDocument doc =
+                   WordprocessingDocument.Create(
+                       stream,
+                       DocumentFormat.OpenXml
+                           .WordprocessingDocumentType
+                           .Document,
+                       true))
             {
-                var row = new DocumentFormat.OpenXml.Spreadsheet.Row();
-                row.Append(
-                    CreateCell(purchase.Id.ToString()),
-                    CreateCell(purchase.RawMaterialModel?.Name ?? ""),
-                    CreateCell(purchase.Quantity.ToString()),
-                    CreateCell(purchase.Amount.ToString()),
-                    CreateCell(purchase.Employees?.Full_Name ?? "")
-                );
-                sheetData.AppendChild(row);
+                MainDocumentPart mainPart =
+                    doc.AddMainDocumentPart();
+
+                mainPart.Document =
+                    new Document();
+
+                Body body = new Body();
+
+                // =====================================================
+                // TITLE
+                // =====================================================
+
+                body.Append(
+                    new Paragraph(
+                        new Run(
+                            new Text(
+                                "Purchases Report"))));
+
+                // =====================================================
+                // MAIN TABLE
+                // =====================================================
+
+                Table table = new Table();
+
+                // HEADER
+
+                TableRow header =
+                    new TableRow();
+
+                header.Append(
+                    CreateCell("Raw Material"));
+
+                header.Append(
+                    CreateCell("Employee"));
+
+                header.Append(
+                    CreateCell("Quantity"));
+
+                header.Append(
+                    CreateCell("Amount"));
+
+                header.Append(
+                    CreateCell("Average Price"));
+
+                header.Append(
+                    CreateCell("Date"));
+
+                table.Append(header);
+
+                // DATA
+
+                foreach (var item in purchases)
+                {
+                    decimal avgPrice =
+                        item.Quantity > 0
+                            ? item.Amount / item.Quantity
+                            : 0;
+
+                    TableRow row =
+                        new TableRow();
+
+                    row.Append(
+                        CreateCell(
+                            item.RawMaterialModel?.Name ??
+                            "No material"));
+
+                    row.Append(
+                        CreateCell(
+                            item.Employees?.Full_Name ??
+                            "No employee"));
+
+                    row.Append(
+                        CreateCell(
+                            item.Quantity.ToString()));
+
+                    row.Append(
+                        CreateCell(
+                            item.Amount.ToString()));
+
+                    row.Append(
+                        CreateCell(
+                            avgPrice.ToString("0.00")));
+
+                    row.Append(
+                        CreateCell(
+                            item.Date
+                                .ToString("dd.MM.yyyy")));
+
+                    table.Append(row);
+                }
+
+                // =====================================================
+                // TOTALS
+                // =====================================================
+
+                decimal totalQuantity =
+                    purchases.Sum(x => x.Quantity);
+
+                decimal totalAmount =
+                    purchases.Sum(x => x.Amount);
+
+                decimal averagePrice =
+                    totalQuantity > 0
+                        ? totalAmount / totalQuantity
+                        : 0;
+
+                TableRow totalRow =
+                    new TableRow();
+
+                totalRow.Append(CreateCell(""));
+                totalRow.Append(CreateCell("TOTAL"));
+
+                totalRow.Append(
+                    CreateCell(
+                        totalQuantity.ToString()));
+
+                totalRow.Append(
+                    CreateCell(
+                        totalAmount.ToString()));
+
+                totalRow.Append(
+                    CreateCell(
+                        averagePrice.ToString("0.00")));
+
+                totalRow.Append(CreateCell(""));
+
+                table.Append(totalRow);
+
+                body.Append(table);
+
+                // =====================================================
+                // GROUPING TABLE
+                // =====================================================
+
+                body.Append(
+                    new Paragraph(
+                        new Run(
+                            new Text(
+                                "Grouped By Raw Material"))));
+
+                Table groupTable =
+                    new Table();
+
+                TableRow groupHeader =
+                    new TableRow();
+
+                groupHeader.Append(
+                    CreateCell("Raw Material"));
+
+                groupHeader.Append(
+                    CreateCell("Total Quantity"));
+
+                groupHeader.Append(
+                    CreateCell("Total Amount"));
+
+                groupHeader.Append(
+                    CreateCell("Average Price"));
+
+                groupTable.Append(groupHeader);
+
+                var grouped =
+                    purchases
+                        .GroupBy(x =>
+                            x.RawMaterialModel?.Name)
+
+                        .Select(x => new
+                        {
+                            Material = x.Key,
+
+                            Quantity =
+                                x.Sum(y => y.Quantity),
+
+                            Amount =
+                                x.Sum(y => y.Amount)
+                        })
+
+                        .ToList();
+
+                foreach (var item in grouped)
+                {
+                    decimal avg =
+                        item.Quantity > 0
+                            ? item.Amount / item.Quantity
+                            : 0;
+
+                    TableRow row =
+                        new TableRow();
+
+                    row.Append(
+                        CreateCell(
+                            item.Material ??
+                            "No material"));
+
+                    row.Append(
+                        CreateCell(
+                            item.Quantity.ToString()));
+
+                    row.Append(
+                        CreateCell(
+                            item.Amount.ToString()));
+
+                    row.Append(
+                        CreateCell(
+                            avg.ToString("0.00")));
+
+                    groupTable.Append(row);
+                }
+
+                body.Append(groupTable);
+
+                mainPart.Document.Append(body);
+
+                mainPart.Document.Save();
             }
 
-            workbookPart.Workbook.Save();
+            return File(
+                stream.ToArray(),
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                "PurchasesReport.docx");
         }
+        // =====================================================
+        // PURCHASES EXCEL
+        // =====================================================
 
-        stream.Position = 0;
-        return File(stream.ToArray(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "RawMaterialPurchases.xlsx");
-    }
-
-    private DocumentFormat.OpenXml.Spreadsheet.Cell CreateCell(string text)
-    {
-        return new DocumentFormat.OpenXml.Spreadsheet.Cell
+        public async Task<IActionResult>
+            PurchasesExcel()
         {
-            DataType = DocumentFormat.OpenXml.Spreadsheet.CellValues.String,
-            CellValue = new DocumentFormat.OpenXml.Spreadsheet.CellValue(text)
-        };
-    }
+            var purchases =
+                await _context.Raw_Materials_Purchase
+                    .Include(x => x.RawMaterialModel)
+                    .Include(x => x.Employees)
+                    .OrderByDescending(x => x.Date)
+                    .ToListAsync();
 
-    // Экспорт RawMaterialPurchase в PDF
-    [HttpGet]
-    public async Task<IActionResult> ExportRawMaterialPurchaseToPdf()
-    {
-        var purchases = await _context.Raw_Materials_Purchase
-            .Include(r => r.RawMaterialModel)
-            .Include(r => r.Employees)
-            .ToListAsync();
+            using var workbook = new XLWorkbook();
 
-        using var stream = new MemoryStream();
-        var document = new PdfDocument();
-        var page = document.AddPage();
-        var gfx = XGraphics.FromPdfPage(page);
-        var font = new XFont("Verdana", 12);
+            var sheet = workbook.Worksheets
+                .Add("Purchases");
 
-        double y = 40;
-        foreach (var purchase in purchases)
+            // =====================================================
+            // HEADERS
+            // =====================================================
+
+            sheet.Cell(1, 1).Value = "Raw Material";
+            sheet.Cell(1, 2).Value = "Employee";
+            sheet.Cell(1, 3).Value = "Quantity";
+            sheet.Cell(1, 4).Value = "Amount";
+            sheet.Cell(1, 5).Value = "Average Price";
+            sheet.Cell(1, 6).Value = "Date";
+
+            var headerRange =
+                sheet.Range("A1:F1");
+
+            headerRange.Style.Font.Bold = true;
+
+            // =====================================================
+            // DATA
+            // =====================================================
+
+            int row = 2;
+
+            foreach (var item in purchases)
+            {
+                decimal avgPrice =
+                    item.Quantity > 0
+                        ? item.Amount / item.Quantity
+                        : 0;
+
+                sheet.Cell(row, 1).Value =
+                    item.RawMaterialModel?.Name ??
+                    "No material";
+
+                sheet.Cell(row, 2).Value =
+                    item.Employees?.Full_Name ??
+                    "No employee";
+
+                sheet.Cell(row, 3).Value =
+                    item.Quantity;
+
+                sheet.Cell(row, 4).Value =
+                    item.Amount;
+
+                sheet.Cell(row, 5).Value =
+                    avgPrice;
+
+                sheet.Cell(row, 6).Value =
+                    item.Date.ToString("dd.MM.yyyy");
+
+                row++;
+            }
+
+            // =====================================================
+            // TOTALS
+            // =====================================================
+
+            decimal totalQuantity =
+                purchases.Sum(x => x.Quantity);
+
+            decimal totalAmount =
+                purchases.Sum(x => x.Amount);
+
+            decimal averagePrice =
+                totalQuantity > 0
+                    ? totalAmount / totalQuantity
+                    : 0;
+
+            sheet.Cell(row + 1, 2).Value =
+                "TOTAL";
+
+            sheet.Cell(row + 1, 3).Value =
+                totalQuantity;
+
+            sheet.Cell(row + 1, 4).Value =
+                totalAmount;
+
+            sheet.Cell(row + 1, 5).Value =
+                averagePrice;
+
+            var totalRange =
+                sheet.Range($"B{row + 1}:E{row + 1}");
+
+            totalRange.Style.Font.Bold = true;
+
+            // =====================================================
+            // GROUPING
+            // =====================================================
+
+            row += 4;
+
+            sheet.Cell(row, 1).Value =
+                "GROUPED BY RAW MATERIAL";
+
+            sheet.Range($"A{row}:D{row}")
+                .Style.Font.Bold = true;
+
+            row++;
+
+            sheet.Cell(row, 1).Value =
+                "Raw Material";
+
+            sheet.Cell(row, 2).Value =
+                "Total Quantity";
+
+            sheet.Cell(row, 3).Value =
+                "Total Amount";
+
+            sheet.Cell(row, 4).Value =
+                "Average Price";
+
+            var groupHeader =
+                sheet.Range($"A{row}:D{row}");
+
+            groupHeader.Style.Font.Bold = true;
+
+            row++;
+
+            var grouped =
+                purchases
+                    .GroupBy(x =>
+                        x.RawMaterialModel?.Name)
+
+                    .Select(x => new
+                    {
+                        Material = x.Key,
+
+                        Quantity =
+                            x.Sum(y => y.Quantity),
+
+                        Amount =
+                            x.Sum(y => y.Amount)
+                    })
+
+                    .ToList();
+
+            foreach (var item in grouped)
+            {
+                decimal avg =
+                    item.Quantity > 0
+                        ? item.Amount / item.Quantity
+                        : 0;
+
+                sheet.Cell(row, 1).Value =
+                    item.Material;
+
+                sheet.Cell(row, 2).Value =
+                    item.Quantity;
+
+                sheet.Cell(row, 3).Value =
+                    item.Amount;
+
+                sheet.Cell(row, 4).Value =
+                    avg;
+
+                row++;
+            }
+
+            // =====================================================
+            // STYLE
+            // =====================================================
+
+            sheet.Columns().AdjustToContents();
+
+            sheet.RangeUsed().Style.Border
+                .OutsideBorder =
+                    XLBorderStyleValues.Thin;
+
+            sheet.RangeUsed().Style.Border
+                .InsideBorder =
+                    XLBorderStyleValues.Thin;
+
+            using var stream = new MemoryStream();
+
+            workbook.SaveAs(stream);
+
+            return File(
+                stream.ToArray(),
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                "PurchasesReport.xlsx");
+        }
+        // =====================================================
+        // PURCHASES PDF
+        // =====================================================
+
+        public async Task<IActionResult>
+            PurchasesPdf()
         {
-            gfx.DrawString($"Сырье: {purchase.RawMaterialModel?.Name}, Кол-во: {purchase.Quantity}, Сумма: {purchase.Amount}, Сотрудник: {purchase.Employees?.Full_Name}",
-                font, XBrushes.Black, new XRect(20, y, page.Width - 40, page.Height), XStringFormats.TopLeft);
+            var purchases =
+                await _context.Raw_Materials_Purchase
+                    .Include(x => x.RawMaterialModel)
+                    .Include(x => x.Employees)
+                    .OrderByDescending(x => x.Date)
+                    .ToListAsync();
+
+            PdfDocument document =
+                new PdfDocument();
+
+            document.Info.Title =
+                "Purchases Report";
+
+            PdfPage page =
+                document.AddPage();
+
+            XGraphics gfx =
+                XGraphics.FromPdfPage(page);
+
+            XFont titleFont =
+                new XFont("Verdana", 18);
+
+            XFont headerFont =
+                new XFont("Verdana", 9,
+                    XFontStyle.Bold);
+
+            XFont font =
+                new XFont("Verdana", 8);
+
+            // =====================================================
+            // TITLE
+            // =====================================================
+
+            gfx.DrawString(
+                "Purchases Report",
+                titleFont,
+                XBrushes.Black,
+                new XRect(
+                    0,
+                    20,
+                    page.Width,
+                    page.Height),
+                XStringFormats.TopCenter);
+
+            int y = 70;
+
+            // =====================================================
+            // TABLE HEADER
+            // =====================================================
+
+            gfx.DrawRectangle(
+                XPens.Black,
+                20, y, 560, 25);
+
+            gfx.DrawString(
+                "Material",
+                headerFont,
+                XBrushes.Black,
+                new XPoint(25, y + 15));
+
+            gfx.DrawString(
+                "Employee",
+                headerFont,
+                XBrushes.Black,
+                new XPoint(140, y + 15));
+
+            gfx.DrawString(
+                "Qty",
+                headerFont,
+                XBrushes.Black,
+                new XPoint(270, y + 15));
+
+            gfx.DrawString(
+                "Amount",
+                headerFont,
+                XBrushes.Black,
+                new XPoint(340, y + 15));
+
+            gfx.DrawString(
+                "Avg Price",
+                headerFont,
+                XBrushes.Black,
+                new XPoint(430, y + 15));
+
+            gfx.DrawString(
+                "Date",
+                headerFont,
+                XBrushes.Black,
+                new XPoint(510, y + 15));
+
             y += 25;
-            if (y > page.Height - 40)
+
+            // =====================================================
+            // DATA
+            // =====================================================
+
+            foreach (var item in purchases)
             {
-                page = document.AddPage();
-                gfx = XGraphics.FromPdfPage(page);
-                y = 40;
-            }
-        }
+                decimal avgPrice =
+                    item.Quantity > 0
+                        ? item.Amount / item.Quantity
+                        : 0;
 
-        document.Save(stream, false);
+                gfx.DrawRectangle(
+                    XPens.Black,
+                    20, y, 560, 25);
 
-        stream.Position = 0;
-        return File(stream.ToArray(), "application/pdf", "RawMaterialPurchases.pdf");
-    }
-    [HttpGet("Report/ExportCreditToWord/{id}")]
-    public IActionResult ExportCreditToWord(int id)
-    {
-        var credit = _context.Credit
-            .Include(c => c.Payment)
-            .FirstOrDefault(c => c.id == id);
+                gfx.DrawString(
+                    item.RawMaterialModel?.Name ??
+                    "No material",
+                    font,
+                    XBrushes.Black,
+                    new XPoint(25, y + 15));
 
-        if (credit == null)
-            return NotFound();
+                gfx.DrawString(
+                    item.Employees?.Full_Name ??
+                    "No employee",
+                    font,
+                    XBrushes.Black,
+                    new XPoint(140, y + 15));
 
-        using var memoryStream = new MemoryStream();
-        using (var wordDocument = WordprocessingDocument.Create(memoryStream, WordprocessingDocumentType.Document))
-        {
-            var mainPart = wordDocument.AddMainDocumentPart();
-            mainPart.Document = new Document(new Body());
-            var body = mainPart.Document.Body;
+                gfx.DrawString(
+                    item.Quantity.ToString(),
+                    font,
+                    XBrushes.Black,
+                    new XPoint(270, y + 15));
 
-            body.Append(
-                new Paragraph(new Run(new Text($"Кредит № {credit.id}"))),
-                new Paragraph(new Run(new Text($"Сумма кредита: {credit.Amount}"))),
-                new Paragraph(new Run(new Text("Платежи по кредиту:")))
-            );
+                gfx.DrawString(
+                    item.Amount.ToString(),
+                    font,
+                    XBrushes.Black,
+                    new XPoint(340, y + 15));
 
-            foreach (var payment in credit.Payment)
-            {
-                body.Append(new Paragraph(new Run(new Text(
-                    $"Дата: {payment.PaymentDate:yyyy-MM-dd}, Сумма: {payment.PaymentAmount}"))));
-            }
+                gfx.DrawString(
+                    avgPrice.ToString("0.00"),
+                    font,
+                    XBrushes.Black,
+                    new XPoint(430, y + 15));
 
-            wordDocument.Save();
-        }
+                gfx.DrawString(
+                    item.Date
+                        .ToString("dd.MM.yyyy"),
+                    font,
+                    XBrushes.Black,
+                    new XPoint(510, y + 15));
 
-        return File(memoryStream.ToArray(), "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "CreditDetails.docx");
-    }
+                y += 25;
 
-    [HttpGet("Report/ExportCreditToExcel/{id}")]
-    public IActionResult ExportCreditToExcel(int id)
-    {
-        var credit = _context.Credit
-            .Include(c => c.Payment)
-            .FirstOrDefault(c => c.id == id);
+                // =====================================================
+                // NEW PAGE
+                // =====================================================
 
-        if (credit == null)
-            return NotFound();
+                if (y > 750)
+                {
+                    page = document.AddPage();
 
-        using var memoryStream = new MemoryStream();
-        using (var spreadsheet = SpreadsheetDocument.Create(memoryStream, SpreadsheetDocumentType.Workbook))
-        {
-            var workbookPart = spreadsheet.AddWorkbookPart();
-            workbookPart.Workbook = new Workbook();
-            var worksheetPart = workbookPart.AddNewPart<WorksheetPart>();
-            worksheetPart.Worksheet = new Worksheet(new SheetData());
-            var sheets = spreadsheet.WorkbookPart.Workbook.AppendChild(new Sheets());
-            var sheet = new Sheet() { Name = "Кредит", SheetId = 1, Id = spreadsheet.WorkbookPart.GetIdOfPart(worksheetPart) };
-            sheets.Append(sheet);
+                    gfx = XGraphics
+                        .FromPdfPage(page);
 
-            var sheetData = worksheetPart.Worksheet.GetFirstChild<SheetData>();
-            var header = new Row();
-            header.Append(
-                new Cell { CellValue = new CellValue("Кредит №"), DataType = CellValues.String },
-                new Cell { CellValue = new CellValue("Сумма"), DataType = CellValues.String },
-                new Cell { CellValue = new CellValue("Дата платежа"), DataType = CellValues.String },
-                new Cell { CellValue = new CellValue("Сумма платежа"), DataType = CellValues.String }
-            );
-            sheetData.Append(header);
-
-            foreach (var payment in credit.Payment)
-            {
-                var row = new Row();
-                row.Append(
-                    new Cell { CellValue = new CellValue(credit.id.ToString()), DataType = CellValues.Number },
-                    new Cell { CellValue = new CellValue(credit.Amount.ToString()), DataType = CellValues.Number },
-                    new Cell { CellValue = new CellValue(payment.PaymentDate.ToString("yyyy-MM-dd")), DataType = CellValues.String },
-                    new Cell { CellValue = new CellValue(payment.PaymentAmount.ToString()), DataType = CellValues.Number }
-                );
-                sheetData.Append(row);
+                    y = 40;
+                }
             }
 
-            workbookPart.Workbook.Save();
-        }
+            // =====================================================
+            // TOTALS
+            // =====================================================
 
-        return File(memoryStream.ToArray(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "CreditDetails.xlsx");
-    }
+            decimal totalQuantity =
+                purchases.Sum(x => x.Quantity);
 
-    [HttpGet("Report/ExportCreditToPdf/{id}")]
-    public IActionResult ExportCreditToPdf(int id)
-    {
-        var credit = _context.Credit
-            .Include(c => c.Payment)
-            .FirstOrDefault(c => c.id == id);
+            decimal totalAmount =
+                purchases.Sum(x => x.Amount);
 
-        if (credit == null)
-            return NotFound();
+            decimal averagePrice =
+                totalQuantity > 0
+                    ? totalAmount / totalQuantity
+                    : 0;
 
-        using var memoryStream = new MemoryStream();
-        var document = new PdfDocument();
-        var page = document.AddPage();
-        var gfx = XGraphics.FromPdfPage(page);
-        var fontHeader = new XFont("Arial", 16, XFontStyle.Bold);
-        var fontContent = new XFont("Arial", 12);
+            gfx.DrawRectangle(
+                XPens.Black,
+                20, y, 560, 30);
 
-        gfx.DrawString($"Кредит № {credit.id}", fontHeader, XBrushes.Black, new XPoint(40, 40));
-        gfx.DrawString($"Сумма кредита: {credit.Amount}", fontContent, XBrushes.Black, new XPoint(40, 80));
-        gfx.DrawString("Платежи по кредиту:", fontContent, XBrushes.Black, new XPoint(40, 110));
+            gfx.DrawString(
+                "TOTAL",
+                headerFont,
+                XBrushes.Black,
+                new XPoint(140, y + 18));
 
-        int y = 140;
-        foreach (var payment in credit.Payment)
-        {
-            gfx.DrawString($"Дата: {payment.PaymentDate:yyyy-MM-dd}, Сумма: {payment.PaymentAmount}", fontContent, XBrushes.Black, new XPoint(40, y));
+            gfx.DrawString(
+                totalQuantity.ToString(),
+                headerFont,
+                XBrushes.Black,
+                new XPoint(270, y + 18));
+
+            gfx.DrawString(
+                totalAmount.ToString(),
+                headerFont,
+                XBrushes.Black,
+                new XPoint(340, y + 18));
+
+            gfx.DrawString(
+                averagePrice.ToString("0.00"),
+                headerFont,
+                XBrushes.Black,
+                new XPoint(430, y + 18));
+
+            y += 50;
+
+            // =====================================================
+            // GROUPING TITLE
+            // =====================================================
+
+            gfx.DrawString(
+                "Grouped By Raw Material",
+                headerFont,
+                XBrushes.Black,
+                new XPoint(20, y));
+
             y += 20;
+
+            // =====================================================
+            // GROUP HEADER
+            // =====================================================
+
+            gfx.DrawRectangle(
+                XPens.Black,
+                20, y, 400, 25);
+
+            gfx.DrawString(
+                "Material",
+                headerFont,
+                XBrushes.Black,
+                new XPoint(25, y + 15));
+
+            gfx.DrawString(
+                "Total Qty",
+                headerFont,
+                XBrushes.Black,
+                new XPoint(180, y + 15));
+
+            gfx.DrawString(
+                "Total Amount",
+                headerFont,
+                XBrushes.Black,
+                new XPoint(270, y + 15));
+
+            gfx.DrawString(
+                "Avg Price",
+                headerFont,
+                XBrushes.Black,
+                new XPoint(360, y + 15));
+
+            y += 25;
+
+            // =====================================================
+            // GROUP DATA
+            // =====================================================
+
+            var grouped =
+                purchases
+                    .GroupBy(x =>
+                        x.RawMaterialModel?.Name)
+
+                    .Select(x => new
+                    {
+                        Material = x.Key,
+
+                        Quantity =
+                            x.Sum(y => y.Quantity),
+
+                        Amount =
+                            x.Sum(y => y.Amount)
+                    })
+
+                    .ToList();
+
+            foreach (var item in grouped)
+            {
+                decimal avg =
+                    item.Quantity > 0
+                        ? item.Amount / item.Quantity
+                        : 0;
+
+                gfx.DrawRectangle(
+                    XPens.Black,
+                    20, y, 400, 25);
+
+                gfx.DrawString(
+                    item.Material ??
+                    "No material",
+                    font,
+                    XBrushes.Black,
+                    new XPoint(25, y + 15));
+
+                gfx.DrawString(
+                    item.Quantity.ToString(),
+                    font,
+                    XBrushes.Black,
+                    new XPoint(180, y + 15));
+
+                gfx.DrawString(
+                    item.Amount.ToString(),
+                    font,
+                    XBrushes.Black,
+                    new XPoint(270, y + 15));
+
+                gfx.DrawString(
+                    avg.ToString("0.00"),
+                    font,
+                    XBrushes.Black,
+                    new XPoint(360, y + 15));
+
+                y += 25;
+            }
+
+            using var stream = new MemoryStream();
+
+            document.Save(stream);
+
+            return File(
+                stream.ToArray(),
+                "application/pdf",
+                "PurchasesReport.pdf");
+        }
+        // =====================================================
+        // SALARY EXCEL
+        // =====================================================
+
+        public async Task<IActionResult>
+            SalaryExcel()
+        {
+            var salaries =
+                await _context.Salary
+                    .Include(x => x.Employees)
+                    .OrderByDescending(x => x.Year)
+                    .ThenByDescending(x => x.Month)
+                    .ToListAsync();
+
+            using var workbook =
+                new XLWorkbook();
+
+            var sheet =
+                workbook.Worksheets
+                    .Add("Salary Report");
+
+            // HEADERS
+
+            sheet.Cell(1, 1).Value = "Employee";
+            sheet.Cell(1, 2).Value = "Purchases";
+            sheet.Cell(1, 3).Value = "Production";
+            sheet.Cell(1, 4).Value = "Sales";
+            sheet.Cell(1, 5).Value = "Operations";
+            sheet.Cell(1, 6).Value = "Salary";
+            sheet.Cell(1, 7).Value = "Bonus";
+            sheet.Cell(1, 8).Value = "Total";
+            sheet.Cell(1, 9).Value = "Status";
+            sheet.Cell(1, 10).Value = "Year";
+            sheet.Cell(1, 11).Value = "Month";
+
+            var header =
+                sheet.Range("A1:K1");
+
+            header.Style.Font.Bold = true;
+
+            int row = 2;
+
+            foreach (var item in salaries)
+            {
+                sheet.Cell(row, 1).Value =
+                    item.Employees?.Full_Name ??
+                    "No employee";
+
+                sheet.Cell(row, 2).Value =
+                    item.NumberOfPurchases ?? 0;
+
+                sheet.Cell(row, 3).Value =
+                    item.NumberOfProductions ?? 0;
+
+                sheet.Cell(row, 4).Value =
+                    item.NumberOfSales ?? 0;
+
+                sheet.Cell(row, 5).Value =
+                    item.Common ?? 0;
+
+                sheet.Cell(row, 6).Value =
+                    item.SalaryAmount;
+
+                sheet.Cell(row, 7).Value =
+                    item.Bonus ?? 0;
+
+                sheet.Cell(row, 8).Value =
+                    item.General ?? 0;
+
+                sheet.Cell(row, 9).Value =
+                    item.Issued
+                        ? "Issued"
+                        : "Not Issued";
+
+                sheet.Cell(row, 10).Value =
+                    item.Year;
+
+                sheet.Cell(row, 11).Value =
+                    CultureInfo
+                        .GetCultureInfo("ru-RU")
+                        .DateTimeFormat
+                        .GetMonthName(item.Month);
+
+                row++;
+            }
+
+            // TOTAL ROW
+
+            sheet.Cell(row, 1).Value = "TOTAL";
+
+            sheet.Cell(row, 2).Value =
+                salaries.Sum(x =>
+                    x.NumberOfPurchases ?? 0);
+
+            sheet.Cell(row, 3).Value =
+                salaries.Sum(x =>
+                    x.NumberOfProductions ?? 0);
+
+            sheet.Cell(row, 4).Value =
+                salaries.Sum(x =>
+                    x.NumberOfSales ?? 0);
+
+            sheet.Cell(row, 5).Value =
+                salaries.Sum(x =>
+                    x.Common ?? 0);
+
+            sheet.Cell(row, 6).Value =
+                salaries.Sum(x =>
+                    x.SalaryAmount);
+
+            sheet.Cell(row, 7).Value =
+                salaries.Sum(x =>
+                    x.Bonus ?? 0);
+
+            sheet.Cell(row, 8).Value =
+                salaries.Sum(x =>
+                    x.General ?? 0);
+
+            sheet.Range($"A{row}:K{row}")
+                .Style.Font.Bold = true;
+
+            sheet.Columns()
+                .AdjustToContents();
+
+            sheet.RangeUsed()
+                .Style.Border
+                .OutsideBorder =
+                    XLBorderStyleValues.Thin;
+
+            sheet.RangeUsed()
+                .Style.Border
+                .InsideBorder =
+                    XLBorderStyleValues.Thin;
+
+            using var stream =
+                new MemoryStream();
+
+            workbook.SaveAs(stream);
+
+            return File(
+                stream.ToArray(),
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                "SalaryReport.xlsx");
+        }
+        // =====================================================
+        // SALARY PDF
+        // =====================================================
+
+        public async Task<IActionResult>
+            SalaryPdf()
+        {
+            var salaries =
+                await _context.Salary
+                    .Include(x => x.Employees)
+                    .OrderByDescending(x => x.Year)
+                    .ThenByDescending(x => x.Month)
+                    .ToListAsync();
+
+            PdfDocument document =
+                new PdfDocument();
+
+            PdfPage page =
+                document.AddPage();
+
+            XGraphics gfx =
+                XGraphics.FromPdfPage(page);
+
+            XFont titleFont =
+                new XFont("Verdana", 18);
+
+            XFont font =
+                new XFont("Verdana", 8);
+
+            gfx.DrawString(
+                "Salary Report",
+                titleFont,
+                XBrushes.Black,
+                new XRect(0, 20,
+                    page.Width,
+                    page.Height),
+                XStringFormats.TopCenter);
+
+            int y = 60;
+
+            foreach (var item in salaries)
+            {
+                string line =
+                    $"{item.Employees?.Full_Name} | " +
+                    $"Salary: {item.SalaryAmount:N2} | " +
+                    $"Bonus: {(item.Bonus ?? 0):N2} | " +
+                    $"Total: {(item.General ?? 0):N2} | " +
+                    $"{(item.Issued ? "Issued" : "Not Issued")}";
+
+                gfx.DrawString(
+                    line,
+                    font,
+                    XBrushes.Black,
+                    new XPoint(20, y));
+
+                y += 20;
+
+                if (y > 750)
+                {
+                    page = document.AddPage();
+
+                    gfx = XGraphics
+                        .FromPdfPage(page);
+
+                    y = 40;
+                }
+            }
+
+            // TOTAL
+
+            y += 20;
+
+            gfx.DrawString(
+                $"TOTAL SALARY: {salaries.Sum(x => x.SalaryAmount):N2}",
+                font,
+                XBrushes.Black,
+                new XPoint(20, y));
+
+            y += 20;
+
+            gfx.DrawString(
+                $"TOTAL BONUS: {salaries.Sum(x => x.Bonus ?? 0):N2}",
+                font,
+                XBrushes.Black,
+                new XPoint(20, y));
+
+            y += 20;
+
+            gfx.DrawString(
+                $"TOTAL GENERAL: {salaries.Sum(x => x.General ?? 0):N2}",
+                font,
+                XBrushes.Black,
+                new XPoint(20, y));
+
+            using var stream =
+                new MemoryStream();
+
+            document.Save(stream);
+
+            return File(
+                stream.ToArray(),
+                "application/pdf",
+                "SalaryReport.pdf");
+        }
+        // =====================================================
+        // SALARY REPORT
+        // =====================================================
+
+        public async Task<IActionResult>
+      Salary(SalaryFilterVM filter)
+        {
+            var salaries =
+                _context.Salary
+                    .Include(x => x.Employees)
+                    .AsQueryable();
+
+            if (filter.YearFrom.HasValue)
+            {
+                salaries = salaries.Where(x =>
+                    x.Year >= filter.YearFrom.Value);
+            }
+
+            if (filter.YearTo.HasValue)
+            {
+                salaries = salaries.Where(x =>
+                    x.Year <= filter.YearTo.Value);
+            }
+
+            if (filter.MonthFrom.HasValue)
+            {
+                salaries = salaries.Where(x =>
+                    x.Month >= filter.MonthFrom.Value);
+            }
+
+            if (filter.MonthTo.HasValue)
+            {
+                salaries = salaries.Where(x =>
+                    x.Month <= filter.MonthTo.Value);
+            }
+
+            // EMPLOYEE
+
+            if (filter.Employees_id.HasValue)
+            {
+                salaries = salaries.Where(x =>
+                    x.Employees_id ==
+                    filter.Employees_id.Value);
+            }
+
+            // STATUS
+
+            if (filter.Issued.HasValue)
+            {
+                salaries = salaries.Where(x =>
+                    x.Issued ==
+                    filter.Issued.Value);
+            }
+
+            filter.Employees =
+                await _context.Employees
+                    .Select(x => new SelectListItem
+                    {
+                        Text = x.Full_Name,
+                        Value = x.Id.ToString()
+                    })
+                    .ToListAsync();
+
+            var vm = new SalaryReportVM
+            {
+                Salaries = await salaries
+                    .OrderByDescending(x => x.Year)
+                    .ThenByDescending(x => x.Month)
+                    .ToListAsync(),
+
+                Filter = filter
+            };
+
+            return View(vm);
+        }
+        // =====================================================
+        // SALARY WORD
+        // =====================================================
+
+        public async Task<IActionResult>
+            SalaryWord()
+        {
+            var salaries =
+                await _context.Salary
+                    .Include(x => x.Employees)
+                    .OrderByDescending(x => x.Year)
+                    .ThenByDescending(x => x.Month)
+                    .ToListAsync();
+
+            using var stream =
+                new MemoryStream();
+
+            using (WordprocessingDocument doc =
+                   WordprocessingDocument.Create(
+                       stream,
+                       WordprocessingDocumentType.Document,
+                       true))
+            {
+                MainDocumentPart mainPart =
+                    doc.AddMainDocumentPart();
+
+                mainPart.Document =
+                    new Document();
+
+                Body body =
+                    new Body();
+
+                body.Append(
+                    new Paragraph(
+                        new Run(
+                            new Text("Salary Report"))));
+
+                Table table =
+                    new Table();
+
+                // HEADER
+
+                TableRow header =
+                    new TableRow();
+
+                string[] headers =
+                {
+            "Employee",
+            "Purchases",
+            "Production",
+            "Sales",
+            "Operations",
+            "Salary",
+            "Bonus",
+            "Total",
+            "Status",
+            "Year",
+            "Month"
+        };
+
+                foreach (var h in headers)
+                {
+                    header.Append(
+                        CreateCell(h));
+                }
+
+                table.Append(header);
+
+                // DATA
+
+                foreach (var item in salaries)
+                {
+                    TableRow row =
+                        new TableRow();
+
+                    row.Append(
+                        CreateCell(
+                            item.Employees?.Full_Name ??
+                            "No employee"));
+
+                    row.Append(
+                        CreateCell(
+                            (item.NumberOfPurchases ?? 0)
+                            .ToString()));
+
+                    row.Append(
+                        CreateCell(
+                            (item.NumberOfProductions ?? 0)
+                            .ToString()));
+
+                    row.Append(
+                        CreateCell(
+                            (item.NumberOfSales ?? 0)
+                            .ToString()));
+
+                    row.Append(
+                        CreateCell(
+                            (item.Common ?? 0)
+                            .ToString()));
+
+                    row.Append(
+                        CreateCell(
+                            item.SalaryAmount
+                                .ToString("N2")));
+
+                    row.Append(
+                        CreateCell(
+                            (item.Bonus ?? 0)
+                                .ToString("N2")));
+
+                    row.Append(
+                        CreateCell(
+                            (item.General ?? 0)
+                                .ToString("N2")));
+
+                    row.Append(
+                        CreateCell(
+                            item.Issued
+                                ? "Issued"
+                                : "Not Issued"));
+
+                    row.Append(
+                        CreateCell(
+                            item.Year.ToString()));
+
+                    row.Append(
+                        CreateCell(
+                            CultureInfo
+                                .GetCultureInfo("ru-RU")
+                                .DateTimeFormat
+                                .GetMonthName(item.Month)));
+
+                    table.Append(row);
+                }
+
+                // TOTAL ROW
+
+                TableRow total =
+                    new TableRow();
+
+                total.Append(CreateCell("TOTAL"));
+
+                total.Append(
+                    CreateCell(
+                        salaries.Sum(x =>
+                            x.NumberOfPurchases ?? 0)
+                        .ToString()));
+
+                total.Append(
+                    CreateCell(
+                        salaries.Sum(x =>
+                            x.NumberOfProductions ?? 0)
+                        .ToString()));
+
+                total.Append(
+                    CreateCell(
+                        salaries.Sum(x =>
+                            x.NumberOfSales ?? 0)
+                        .ToString()));
+
+                total.Append(
+                    CreateCell(
+                        salaries.Sum(x =>
+                            x.Common ?? 0)
+                        .ToString()));
+
+                total.Append(
+                    CreateCell(
+                        salaries.Sum(x =>
+                            x.SalaryAmount)
+                        .ToString("N2")));
+
+                total.Append(
+                    CreateCell(
+                        salaries.Sum(x =>
+                            x.Bonus ?? 0)
+                        .ToString("N2")));
+
+                total.Append(
+                    CreateCell(
+                        salaries.Sum(x =>
+                            x.General ?? 0)
+                        .ToString("N2")));
+
+                total.Append(CreateCell(""));
+
+                total.Append(
+                    CreateCell(
+                        $"Records: {salaries.Count}"));
+
+                total.Append(CreateCell(""));
+
+                table.Append(total);
+
+                body.Append(table);
+
+                mainPart.Document.Append(body);
+
+                mainPart.Document.Save();
+            }
+
+            return File(
+                stream.ToArray(),
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                "SalaryReport.docx");
+        }
+        // =====================================================
+        // CREDIT REPORT
+        // =====================================================
+
+        public async Task<IActionResult>
+            Credit()
+        {
+            var vm = new CreditReportVM
+            {
+                Credits = await _context.Credit
+                    .OrderByDescending(x => x.StartDate)
+                    .ToListAsync()
+            };
+
+            return View(vm);
+        }
+        // =====================================================
+        // CREDIT EXCEL
+        // =====================================================
+
+        public async Task<IActionResult>
+            CreditExcel()
+        {
+            var credits = await _context.Credit
+                .OrderByDescending(x => x.StartDate)
+                .ToListAsync();
+
+            using var workbook = new XLWorkbook();
+
+            var sheet = workbook.Worksheets
+                .Add("Credits");
+
+            // HEADERS
+
+            sheet.Cell(1, 1).Value = "ID";
+            sheet.Cell(1, 2).Value = "Amount";
+            sheet.Cell(1, 3).Value = "Interest Rate";
+            sheet.Cell(1, 4).Value = "Payment Type";
+            sheet.Cell(1, 5).Value = "Years";
+            sheet.Cell(1, 6).Value = "Months";
+            sheet.Cell(1, 7).Value = "Remaining";
+            sheet.Cell(1, 8).Value = "Penalties";
+            sheet.Cell(1, 9).Value = "Start Date";
+
+            // DATA
+
+            int row = 2;
+
+            foreach (var item in credits)
+            {
+                sheet.Cell(row, 1).Value =
+                    item.id;
+
+                sheet.Cell(row, 2).Value =
+                    item.Amount;
+
+                sheet.Cell(row, 3).Value =
+                    item.AnnualInterestRate;
+
+                sheet.Cell(row, 4).Value =
+                    item.PaymentType;
+
+                sheet.Cell(row, 5).Value =
+                    item.Years;
+
+                sheet.Cell(row, 6).Value =
+                    item.Months;
+
+                sheet.Cell(row, 7).Value =
+                    item.RemainingAmount ?? 0;
+
+                sheet.Cell(row, 8).Value =
+                    item.Penalties ?? 0;
+
+                sheet.Cell(row, 9).Value =
+                    item.StartDate
+                        .ToString("dd.MM.yyyy");
+
+                row++;
+            }
+
+            // STYLE
+
+            sheet.Columns().AdjustToContents();
+
+            sheet.RangeUsed().Style.Border
+                .OutsideBorder =
+                    XLBorderStyleValues.Thin;
+
+            using var stream = new MemoryStream();
+
+            workbook.SaveAs(stream);
+
+            return File(
+                stream.ToArray(),
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                "CreditReport.xlsx");
+        }
+        
+        // =====================================================
+        // CREDIT WORD
+        // =====================================================
+
+        public async Task<IActionResult>
+            CreditWord()
+        {
+            var credits = await _context.Credit
+                .OrderByDescending(x => x.StartDate)
+                .ToListAsync();
+
+            using var stream = new MemoryStream();
+
+            using (WordprocessingDocument doc =
+                   WordprocessingDocument.Create(
+                       stream,
+                       DocumentFormat.OpenXml
+                           .WordprocessingDocumentType
+                           .Document,
+                       true))
+            {
+                MainDocumentPart mainPart =
+                    doc.AddMainDocumentPart();
+
+                mainPart.Document =
+                    new Document();
+
+                Body body = new Body();
+
+                // TITLE
+
+                body.Append(
+                    new Paragraph(
+                        new Run(
+                            new Text(
+                                "Credit Report"))));
+
+                // TABLE
+
+                Table table = new Table();
+
+                // HEADER
+
+                TableRow header =
+                    new TableRow();
+
+                header.Append(
+                    CreateCell("ID"));
+
+                header.Append(
+                    CreateCell("Amount"));
+
+                header.Append(
+                    CreateCell("Interest"));
+
+                header.Append(
+                    CreateCell("Payment Type"));
+
+                header.Append(
+                    CreateCell("Years"));
+
+                header.Append(
+                    CreateCell("Months"));
+
+                header.Append(
+                    CreateCell("Remaining"));
+
+                header.Append(
+                    CreateCell("Penalties"));
+
+                header.Append(
+                    CreateCell("Start Date"));
+
+                table.Append(header);
+
+                // DATA
+
+                foreach (var item in credits)
+                {
+                    TableRow row =
+                        new TableRow();
+
+                    row.Append(
+                        CreateCell(
+                            item.id.ToString()));
+
+                    row.Append(
+                        CreateCell(
+                            item.Amount.ToString()));
+
+                    row.Append(
+                        CreateCell(
+                            item.AnnualInterestRate
+                                .ToString()));
+
+                    row.Append(
+                        CreateCell(
+                            item.PaymentType));
+
+                    row.Append(
+                        CreateCell(
+                            item.Years.ToString()));
+
+                    row.Append(
+                        CreateCell(
+                            item.Months.ToString()));
+
+                    row.Append(
+                        CreateCell(
+                            (item.RemainingAmount ?? 0)
+                                .ToString()));
+
+                    row.Append(
+                        CreateCell(
+                            (item.Penalties ?? 0)
+                                .ToString()));
+
+                    row.Append(
+                        CreateCell(
+                            item.StartDate
+                                .ToString("dd.MM.yyyy")));
+
+                    table.Append(row);
+                }
+
+                body.Append(table);
+
+                mainPart.Document.Append(body);
+
+                mainPart.Document.Save();
+            }
+
+            return File(
+                stream.ToArray(),
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                "CreditReport.docx");
         }
 
-        document.Save(memoryStream, false);
-        return File(memoryStream.ToArray(), "application/pdf", "CreditDetails.pdf");
+        
+        // =====================================================
+        // CREDIT PDF
+        // =====================================================
+
+        public async Task<IActionResult>
+            CreditPdf()
+        {
+            var credits = await _context.Credit
+                .OrderByDescending(x => x.StartDate)
+                .ToListAsync();
+
+            PdfDocument document =
+                new PdfDocument();
+
+            document.Info.Title =
+                "Credit Report";
+
+            PdfPage page =
+                document.AddPage();
+
+            XGraphics gfx =
+                XGraphics.FromPdfPage(page);
+
+            XFont titleFont =
+                new XFont("Verdana", 18);
+
+            XFont headerFont =
+                new XFont("Verdana", 10,
+                    XFontStyle.Bold);
+
+            XFont font =
+                new XFont("Verdana", 9);
+
+            // TITLE
+
+            gfx.DrawString(
+                "Credit Report",
+                titleFont,
+                XBrushes.Black,
+                new XRect(0, 20,
+                    page.Width,
+                    page.Height),
+                XStringFormats.TopCenter);
+
+            int y = 70;
+
+            // TABLE HEADER
+
+            gfx.DrawString(
+                "ID",
+                headerFont,
+                XBrushes.Black,
+                new XPoint(20, y));
+
+            gfx.DrawString(
+                "Amount",
+                headerFont,
+                XBrushes.Black,
+                new XPoint(60, y));
+
+            gfx.DrawString(
+                "Interest",
+                headerFont,
+                XBrushes.Black,
+                new XPoint(140, y));
+
+            gfx.DrawString(
+                "Years",
+                headerFont,
+                XBrushes.Black,
+                new XPoint(220, y));
+
+            gfx.DrawString(
+                "Remaining",
+                headerFont,
+                XBrushes.Black,
+                new XPoint(280, y));
+
+            gfx.DrawString(
+                "Date",
+                headerFont,
+                XBrushes.Black,
+                new XPoint(380, y));
+
+            y += 20;
+
+            // DATA
+
+            foreach (var item in credits)
+            {
+                gfx.DrawString(
+                    item.id.ToString(),
+                    font,
+                    XBrushes.Black,
+                    new XPoint(20, y));
+
+                gfx.DrawString(
+                    item.Amount.ToString(),
+                    font,
+                    XBrushes.Black,
+                    new XPoint(60, y));
+
+                gfx.DrawString(
+                    item.AnnualInterestRate
+                        .ToString(),
+                    font,
+                    XBrushes.Black,
+                    new XPoint(140, y));
+
+                gfx.DrawString(
+                    item.Years.ToString(),
+                    font,
+                    XBrushes.Black,
+                    new XPoint(220, y));
+
+                gfx.DrawString(
+                    (item.RemainingAmount ?? 0)
+                        .ToString(),
+                    font,
+                    XBrushes.Black,
+                    new XPoint(280, y));
+
+                gfx.DrawString(
+                    item.StartDate
+                        .ToString("dd.MM.yyyy"),
+                    font,
+                    XBrushes.Black,
+                    new XPoint(380, y));
+
+                y += 20;
+
+                // NEW PAGE
+
+                if (y > 750)
+                {
+                    page = document.AddPage();
+
+                    gfx = XGraphics
+                        .FromPdfPage(page);
+
+                    y = 40;
+                }
+            }
+
+            using var stream = new MemoryStream();
+
+            document.Save(stream);
+
+            return File(
+                stream.ToArray(),
+                "application/pdf",
+                "CreditReport.pdf");
+        }
     }
-
 }
-
-
-

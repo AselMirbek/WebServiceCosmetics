@@ -1,28 +1,178 @@
-﻿<@{
-    ViewData["Title"] = "Отчеты";
-}
+﻿@model WebServiceCosmetics.ViewModel.ReportDashboardVM
 
-<h2 class="text-center">Отчеты</h2>
+<div class="container mt-5">
 
-<div class="container mt-4">
-    <h4>Производство продуктов</h4>
-    <div class="btn-group mb-3">
-        <a class="btn btn-primary" href="@Url.Action("ExportProductManufacturingToWord", "Report")">Word</a>
-        <a class="btn btn-success" href="@Url.Action("ExportProductManufacturingToExcel", "Report")">Excel</a>
-        <a class="btn btn-danger" href="@Url.Action("ExportProductManufacturingToPdf", "Report")">PDF</a>
+    <h1 class="mb-5">
+        Enterprise Reports Center
+    </h1>
+
+    <!-- KPI -->
+
+    <div class="row mb-5">
+
+        <div class="col-md-2">
+            <div class="card shadow-sm p-4 text-center">
+                <h6>Revenue</h6>
+                <h3>@Model.TotalRevenue</h3>
+            </div>
+        </div>
+
+        <div class="col-md-2">
+            <div class="card shadow-sm p-4 text-center">
+                <h6>Sales</h6>
+                <h3>@Model.TotalSales</h3>
+            </div>
+        </div>
+
+        <div class="col-md-2">
+            <div class="card shadow-sm p-4 text-center">
+                <h6>Production</h6>
+                <h3>@Model.TotalManufacturing</h3>
+            </div>
+        </div>
+
+        <div class="col-md-2">
+            <div class="card shadow-sm p-4 text-center">
+                <h6>Purchases</h6>
+                <h3>@Model.TotalPurchases</h3>
+            </div>
+        </div>
+
+        <div class="col-md-2">
+            <div class="card shadow-sm p-4 text-center">
+                <h6>Salary</h6>
+                <h3>@Model.TotalSalary</h3>
+            </div>
+        </div>
+
+        <div class="col-md-2">
+            <div class="card shadow-sm p-4 text-center">
+                <h6>Credits</h6>
+                <h3>@Model.TotalCredits</h3>
+            </div>
+        </div>
+
     </div>
 
-    <h4>Продажи продуктов</h4>
-    <div class="btn-group mb-3">
-        <a class="btn btn-primary" href="@Url.Action("ExportProductSalesToWord", "Report")">Word</a>
-        <a class="btn btn-success" href="@Url.Action("ExportProductSalesToExcel", "Report")">Excel</a>
-        <a class="btn btn-danger" href="@Url.Action("ExportProductSalesToPdf", "Report")">PDF</a>
+    <!-- MODULES -->
+
+    <div class="row">
+
+        <div class="col-md-4 mb-4">
+
+            <a asp-action="Sales"
+               class="text-decoration-none">
+
+                <div class="card shadow-lg border-0 p-5 text-center">
+
+                    <h1>💰</h1>
+
+                    <h4 class="mt-3">
+                        Sales Reports
+                    </h4>
+
+                    <p class="text-muted">
+                        Product sales analytics
+                    </p>
+
+                </div>
+
+            </a>
+
+        </div>
+
+        <div class="col-md-4 mb-4">
+
+            <a asp-action="Manufacturing"
+               class="text-decoration-none">
+
+                <div class="card shadow-lg border-0 p-5 text-center">
+
+                    <h1>🏭</h1>
+
+                    <h4 class="mt-3">
+                        Manufacturing Reports
+                    </h4>
+
+                    <p class="text-muted">
+                        Manufacturing analytics
+                    </p>
+
+                </div>
+
+            </a>
+
+        </div>
+
+        <div class="col-md-4 mb-4">
+
+            <a asp-action="Purchases"
+               class="text-decoration-none">
+
+                <div class="card shadow-lg border-0 p-5 text-center">
+
+                    <h1>📦</h1>
+
+                    <h4 class="mt-3">
+                        Purchases Reports
+                    </h4>
+
+                    <p class="text-muted">
+                        Raw material purchases
+                    </p>
+
+                </div>
+
+            </a>
+
+        </div>
+
+        <div class="col-md-4 mb-4">
+
+            <a asp-action="Salary"
+               class="text-decoration-none">
+
+                <div class="card shadow-lg border-0 p-5 text-center">
+
+                    <h1>👨‍💼</h1>
+
+                    <h4 class="mt-3">
+                        Salary Reports
+                    </h4>
+
+                    <p class="text-muted">
+                        Payroll analytics
+                    </p>
+
+                </div>
+
+            </a>
+
+        </div>
+
+        <div class="col-md-4 mb-4">
+
+            <a asp-action="Credit"
+               class="text-decoration-none">
+
+                <div class="card shadow-lg border-0 p-5 text-center">
+
+                    <h1>💳</h1>
+
+                    <h4 class="mt-3">
+                        Credit Reports
+                    </h4>
+
+                    <p class="text-muted">
+                        Credit analytics
+                    </p>
+
+                </div>
+
+            </a>
+
+        </div>
+
     </div>
 
-    <h4>Закупка сырья</h4>
-    <div class="btn-group mb-3">
-        <a class="btn btn-primary" href="@Url.Action("ExportRawMaterialPurchaseToWord", "Report")">Word</a>
-        <a class="btn btn-success" href="@Url.Action("ExportRawMaterialPurchaseToExcel", "Report")">Excel</a>
-        <a class="btn btn-danger" href="@Url.Action("ExportRawMaterialPurchaseToPdf", "Report")">PDF</a>
-    </div>
 </div>
