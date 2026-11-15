@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using WebServiceCosmetics.Data;
 using WebServiceCosmetics.Models;
+using WebServiceCosmetics.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using System;
@@ -234,11 +235,31 @@ namespace WebServiceCosmetics.Controllers
                 return RedirectToAction("AccessDenied", "Account");
             }
             var product = await _context.Product.FindAsync(id);
-            if (product != null)
+            if (product == null)
             {
-                _context.Product.Remove(product);
-                await _context.SaveChangesAsync();
+                return RedirectToAction(nameof(Index));
             }
+
+            // Keep production and sales history; a product with history must be archived instead.
+            var hasManufacturing = await _context.Product_Manufacturing
+                .AnyAsync(item => item.Product_id == id);
+            var hasSales = await _context.Product_Sales
+                .AnyAsync(item => item.Product_id == id);
+            if (ProductDeletionPolicy.HasHistory(hasManufacturing, hasSales))
+            {
+                TempData["ProductDeleteError"] =
+                    "Нельзя удалить продукт: для него уже есть записи о производстве или продажах.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            // Recipe rows are owned by the product and can be removed with it.
+            var ingredients = await _context.Ingredient
+                .Where(item => item.Product_id == id)
+                .ToListAsync();
+            _context.Ingredient.RemoveRange(ingredients);
+            _context.Product.Remove(product);
+            await _context.SaveChangesAsync();
+
             return RedirectToAction(nameof(Index));
         }
 
