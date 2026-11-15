@@ -6,6 +6,11 @@
 
 <h2>Продукты</h2>
 
+@if (TempData["ProductDeleteError"] is string deleteError)
+{
+    <div class="alert alert-warning" role="alert">@deleteError</div>
+}
+
 <a asp-action="Create" class="btn btn-primary">Добавить новый продукт</a>
 @Html.AntiForgeryToken()
 
