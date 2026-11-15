@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using WebServiceCosmetics.Data;
 using WebServiceCosmetics.Models;
+using WebServiceCosmetics.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using System;
@@ -244,7 +245,7 @@ namespace WebServiceCosmetics.Controllers
                 .AnyAsync(item => item.Product_id == id);
             var hasSales = await _context.Product_Sales
                 .AnyAsync(item => item.Product_id == id);
-            if (hasManufacturing || hasSales)
+            if (ProductDeletionPolicy.HasHistory(hasManufacturing, hasSales))
             {
                 TempData["ProductDeleteError"] =
                     "Нельзя удалить продукт: для него уже есть записи о производстве или продажах.";
